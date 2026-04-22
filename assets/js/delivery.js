@@ -8,11 +8,12 @@ const API_AUTH    = 'api/auth';
 const REFRESH_MS  = 40000;
 
 const state = {
-  listos:      [],
-  entregados:  [],
-  stats:       {},
-  seccion:     'inicio',
-  sonido:      false,
+  disponibles:  [],
+  listos:       [],
+  entregados:   [],
+  stats:        {},
+  seccion:      'inicio',
+  sonido:       false,
   idsConocidos: new Set(),
 };
 
@@ -66,11 +67,12 @@ async function cargar(inicial = false) {
     const data = await r.json();
     if (!data.ok) throw new Error(data.error || 'Error');
 
-    detectarNuevos(data.listos);
-    state.listos     = data.listos    || [];
-    state.entregados = data.entregados|| [];
-    state.stats      = data.stats     || {};
-    state.idsConocidos = new Set(state.listos.map(p => p.id));
+    detectarNuevos(data.disponibles || []);
+    state.disponibles = data.disponibles || [];
+    state.listos      = data.listos      || [];
+    state.entregados  = data.entregados  || [];
+    state.stats       = data.stats       || {};
+    state.idsConocidos = new Set(state.disponibles.map(p => p.id));
 
     renderAll();
     actualizarHora();
@@ -160,39 +162,30 @@ function renderAll() {
 function renderDashboard() {
   const numP = document.getElementById('dashNumPending');
   const numD = document.getElementById('dashNumDelivered');
-  if (numP) numP.textContent = state.listos.length;
+  if (numP) numP.textContent = state.disponibles.length;
   if (numD) numD.textContent = state.entregados.length;
 
+  // Pedidos disponibles para tomar
   const contP  = document.getElementById('dashListaPending');
   const emptyP = document.getElementById('dashEmptyPending');
   if (contP) {
-    const slice = state.listos.slice(0, 3);
-    if (!slice.length) {
+    if (!state.disponibles.length) {
       contP.innerHTML = '';
       if (emptyP) emptyP.style.display = '';
     } else {
       if (emptyP) emptyP.style.display = 'none';
-      contP.innerHTML = slice.map(p => dashCardPending(p)).join('');
+      contP.innerHTML = state.disponibles.map(p => dashCardDisponible(p)).join('');
     }
   }
 
-  const contD  = document.getElementById('dashListaDelivered');
-  const emptyD = document.getElementById('dashEmptyDelivered');
-  if (contD) {
-    const slice = state.entregados.slice(0, 3);
-    if (!slice.length) {
-      contD.innerHTML = '';
-      if (emptyD) emptyD.style.display = '';
-    } else {
-      if (emptyD) emptyD.style.display = 'none';
-      contD.innerHTML = slice.map(p => dashCardDelivered(p)).join('');
-    }
-  }
 }
 
-function dashCardPending(p) {
+function dashCardDisponible(p) {
+  const dir = p.direccion
+    ? `<div class="dash-card-addr"><i class="fa-solid fa-location-dot"></i> ${esc(p.direccion)}</div>`
+    : '';
   return `
-    <div class="dash-card" onclick="ir('pendientes')">
+    <div class="dash-card dash-card--disponible">
       <div class="dash-card-strip"></div>
       <div class="dash-card-body">
         <div class="dash-card-top">
@@ -203,6 +196,10 @@ function dashCardPending(p) {
           <span class="dash-card-cliente">${esc(p.cliente)}</span>
           <span class="dash-card-total">$${fmt(p.total)}</span>
         </div>
+        ${dir}
+        <button class="btn-tomar" data-tomar="${p.id}" onclick="event.stopPropagation();tomarPedido(${p.id})">
+          <i class="fa-solid fa-hand"></i> Tomar pedido
+        </button>
       </div>
     </div>`;
 }
@@ -223,6 +220,34 @@ function dashCardDelivered(p) {
         </div>
       </div>
     </div>`;
+}
+
+async function tomarPedido(id) {
+  const btn = document.querySelector(`[data-tomar="${id}"]`);
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Tomando…'; }
+
+  try {
+    const r = await fetch(API_PEDIDOS, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ id, accion: 'tomar' }),
+    });
+    if (r.status === 401) { location.href = 'login.php'; return; }
+    const data = await r.json();
+    if (data.ok) {
+      toast('✅ Pedido tomado — aparecerá en "Para entregar" cuando esté listo');
+      state.disponibles = state.disponibles.filter(p => p.id !== id);
+      renderDashboard();
+      actualizarBadges();
+    } else {
+      toast('⚠️ ' + (data.error || 'No se pudo tomar el pedido'));
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-hand"></i> Tomar pedido'; }
+    }
+  } catch (e) {
+    toast('Error de conexión');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-hand"></i> Tomar pedido'; }
+  }
 }
 
 function renderPendientes() {
@@ -253,53 +278,99 @@ function renderHistorial() {
   cont.innerHTML = state.entregados.map(p => cardEntregado(p)).join('');
 }
 
+const ESTADO_BADGE = {
+  pendiente:  { label: 'Pendiente',   color: 'var(--info)',    strip: '#3b82f6' },
+  preparando: { label: 'Preparando',  color: 'var(--primary)', strip: 'var(--primary)' },
+  listo:      { label: '¡Listo!',     color: 'var(--success)', strip: 'var(--success)' },
+};
+
 function cardListo(p) {
-  const mapsUrl = mapaUrl(p);
+  const est      = ESTADO_BADGE[p.estado] || ESTADO_BADGE.pendiente;
+  const mapsUrl  = mapaUrl(p);
+  const listo    = p.estado === 'listo';
+
   const itemsHtml = (p.items || []).map(it => `
     <div class="card-item-row">
       <span class="card-item-qty">${it.cantidad}x</span>
       <span class="card-item-name">${esc(it.nombre)}</span>
       <span class="card-item-price">$${fmt(it.precio * it.cantidad)}</span>
-    </div>
-  `).join('');
+    </div>`).join('');
+
+  // Mapa embebido Google Maps
+  const MAPS_KEY = 'AIzaSyDXN7-CpoFdxh_6V-_7UQkPzWFbX6_T1p0';
+  let mapaHtml = '';
+  if (p.lat && p.lng) {
+    const q   = `${p.lat},${p.lng}`;
+    const src = `https://www.google.com/maps/embed/v1/place?key=${MAPS_KEY}&q=${q}&zoom=16`;
+    mapaHtml = `
+      <div class="card-map-wrap">
+        <iframe class="card-map-frame" src="${src}" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+        <a class="card-map-open" href="${mapsUrl}" target="_blank" rel="noopener">
+          <i class="fa-solid fa-up-right-from-square"></i> Abrir en Google Maps
+        </a>
+      </div>`;
+  } else if (p.direccion) {
+    const q   = encodeURIComponent(p.direccion);
+    const src = `https://www.google.com/maps/embed/v1/place?key=${MAPS_KEY}&q=${q}&zoom=16`;
+    mapaHtml = `
+      <div class="card-map-wrap">
+        <iframe class="card-map-frame" src="${src}" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+        <a class="card-map-open" href="${mapsUrl}" target="_blank" rel="noopener">
+          <i class="fa-solid fa-up-right-from-square"></i> Abrir en Google Maps
+        </a>
+      </div>`;
+  }
 
   return `
     <div class="order-card">
-      <div class="card-strip"></div>
+      <div class="card-strip" style="background:${est.strip}"></div>
       <div class="card-body">
+
         <div class="card-row1">
           <span class="card-num">${esc(p.numero)}</span>
-          <span class="card-time">${tiempoRelativo(p.fecha)}</span>
+          <span class="card-estado-badge" style="color:${est.color};background:${est.color}18">${est.label}</span>
         </div>
+        <div class="card-time" style="margin-bottom:8px">${tiempoRelativo(p.fecha)}</div>
+
         <div class="card-cliente">${esc(p.cliente)}</div>
-        ${p.direccion ? `
-        <div class="card-address">
-          <i class="fa-solid fa-location-dot"></i>
-          <span>${esc(p.direccion)}</span>
-        </div>` : ''}
+
         ${p.celular ? `
         <div class="card-phone">
           <i class="fa-solid fa-phone"></i>
           <a href="tel:${esc(p.celular)}">${esc(p.celular)}</a>
         </div>` : ''}
-        ${p.notas ? `<div class="card-address"><i class="fa-solid fa-note-sticky"></i><span>${esc(p.notas)}</span></div>` : ''}
-        ${itemsHtml ? `<div class="card-items">${itemsHtml}</div>` : ''}
+
+        ${p.direccion ? `
+        <div class="card-address">
+          <i class="fa-solid fa-location-dot"></i>
+          <span>${esc(p.direccion)}</span>
+        </div>` : ''}
+
         ${p.distancia_km ? `
-        <div class="card-address" style="margin-bottom:10px">
+        <div class="card-address">
           <i class="fa-solid fa-route"></i>
           <span>${p.distancia_km} km · ~${p.tiempo_min} min</span>
         </div>` : ''}
+
+        ${p.notas ? `
+        <div class="card-address">
+          <i class="fa-solid fa-note-sticky"></i>
+          <span>${esc(p.notas)}</span>
+        </div>` : ''}
+
+        ${mapaHtml}
+
+        ${itemsHtml ? `<div class="card-items">${itemsHtml}</div>` : ''}
+
         <div class="card-footer">
           <span class="card-total">$${fmt(p.total)}</span>
-          <div class="card-actions">
-            <a class="btn-map" href="${mapsUrl}" target="_blank" rel="noopener">
-              <i class="fa-solid fa-map-location-dot"></i> Mapa
-            </a>
-            <button class="btn-deliver" data-deliver="${p.id}" onclick="marcarEntregado(${p.id})">
-              <i class="fa-solid fa-check"></i> Entregado
-            </button>
-          </div>
+          <button class="btn-deliver" data-deliver="${p.id}"
+            onclick="marcarEntregado(${p.id})"
+            ${listo ? '' : 'disabled title="Esperá a que el pedido esté listo"'}>
+            <i class="fa-solid fa-check"></i> ${listo ? 'Entregado' : 'Esperando…'}
+          </button>
         </div>
+
       </div>
     </div>`;
 }
@@ -324,18 +395,28 @@ function cardEntregado(p) {
 }
 
 function actualizarBadges() {
-  const n = state.listos.length;
+  const nListos = state.listos.length;
+  const nDisp   = state.disponibles.length;
+
+  // Badge tab "Para entregar" (pedidos listos asignados a mí)
   const badge = document.getElementById('badgePendientes');
   if (badge) {
-    badge.textContent  = n;
-    badge.style.display = n > 0 ? '' : 'none';
+    badge.textContent   = nListos;
+    badge.style.display = nListos > 0 ? '' : 'none';
+  }
+
+  // Badge tab "Inicio" (pedidos disponibles para tomar)
+  const badgeInicio = document.getElementById('badgeInicio');
+  if (badgeInicio) {
+    badgeInicio.textContent   = nDisp;
+    badgeInicio.style.display = nDisp > 0 ? '' : 'none';
   }
 
   const countPend = document.getElementById('countPendientes');
   const countHist = document.getElementById('countHistorial');
   if (countPend) {
-    countPend.textContent = n;
-    countPend.className   = 'section-count' + (n === 0 ? ' empty' : '');
+    countPend.textContent = nListos;
+    countPend.className   = 'section-count' + (nListos === 0 ? ' empty' : '');
   }
   if (countHist) {
     countHist.textContent = state.entregados.length;

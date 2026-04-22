@@ -14,7 +14,7 @@ $inicial = strtoupper(mb_substr($rep['nombre'] ?? 'R', 0, 1));
   <link rel="icon" type="image/png" sizes="96x96" href="favicon/favicon-96x96.png">
   <link rel="apple-touch-icon" href="favicon/apple-icon-180x180.png">
   <link rel="manifest" href="favicon/manifest.json">
-  <link rel="stylesheet" href="assets/css/delivery.css">
+  <link rel="stylesheet" href="assets/css/delivery.css?v=<?= filemtime(__DIR__ . '/assets/css/delivery.css') ?>">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <meta name="theme-color" content="#FFA000">
   <meta name="mobile-web-app-capable" content="yes">
@@ -71,15 +71,6 @@ $inicial = strtoupper(mb_substr($rep['nombre'] ?? 'R', 0, 1));
       <div class="empty-state" id="dashEmptyPending" style="display:none">
         <i class="fa-solid fa-box-open"></i>
         <p>No hay pedidos pendientes</p>
-      </div>
-
-      <div class="dash-block-title" style="margin-top:18px">
-        <i class="fa-solid fa-circle-check"></i> Entregados hoy
-      </div>
-      <div id="dashListaDelivered"></div>
-      <div class="empty-state" id="dashEmptyDelivered" style="display:none">
-        <i class="fa-solid fa-clock-rotate-left"></i>
-        <p>Aún no entregaste pedidos hoy</p>
       </div>
 
     </div>
@@ -153,6 +144,7 @@ $inicial = strtoupper(mb_substr($rep['nombre'] ?? 'R', 0, 1));
     <button class="nav-tab active" id="tab-inicio" onclick="ir('inicio')">
       <i class="fa-solid fa-house"></i>
       <span>Inicio</span>
+      <span class="nav-badge" id="badgeInicio" style="display:none">0</span>
     </button>
     <button class="nav-tab" id="tab-pendientes" onclick="ir('pendientes')">
       <i class="fa-solid fa-bag-shopping"></i>
@@ -179,7 +171,7 @@ $inicial = strtoupper(mb_substr($rep['nombre'] ?? 'R', 0, 1));
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
-<script src="assets/js/delivery.js"></script>
+<script src="assets/js/delivery.js?v=<?= filemtime(__DIR__ . '/assets/js/delivery.js') ?>"></script>
 <script>
   function confirmarLogout() {
     if (confirm('¿Cerrar sesión?')) logout();
