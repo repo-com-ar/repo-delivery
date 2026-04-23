@@ -236,7 +236,7 @@ async function tomarPedido(id) {
     if (r.status === 401) { location.href = 'login.php'; return; }
     const data = await r.json();
     if (data.ok) {
-      toast('✅ Pedido tomado — aparecerá en "Para entregar" cuando esté listo');
+      toast('✅ Pedido tomado — aparece en "Para entregar"');
       state.disponibles = state.disponibles.filter(p => p.id !== id);
       renderDashboard();
       actualizarBadges();
@@ -279,15 +279,16 @@ function renderHistorial() {
 }
 
 const ESTADO_BADGE = {
-  pendiente:  { label: 'Pendiente',   color: 'var(--info)',    strip: '#3b82f6' },
-  preparando: { label: 'Preparando',  color: 'var(--primary)', strip: 'var(--primary)' },
-  listo:      { label: '¡Listo!',     color: 'var(--success)', strip: 'var(--success)' },
+  pendiente:   { label: 'Pendiente',   color: 'var(--info)',    strip: '#3b82f6' },
+  preparacion: { label: 'Preparación', color: 'var(--primary)', strip: 'var(--primary)' },
+  asignacion:  { label: 'Asignación',  color: '#8b5cf6',        strip: '#8b5cf6' },
+  reparto:     { label: 'En reparto',  color: 'var(--success)', strip: 'var(--success)' },
 };
 
 function cardListo(p) {
   const est      = ESTADO_BADGE[p.estado] || ESTADO_BADGE.pendiente;
   const mapsUrl  = mapaUrl(p);
-  const listo    = p.estado === 'listo';
+  const listo    = p.estado === 'reparto';
 
   const itemsHtml = (p.items || []).map(it => `
     <div class="card-item-row">

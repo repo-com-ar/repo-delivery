@@ -48,7 +48,7 @@ try {
     exit;
 }
 
-$stmt = $pdo->prepare("SELECT id, nombre, correo FROM repartidores WHERE correo = ? AND contrasena = ? LIMIT 1");
+$stmt = $pdo->prepare("SELECT id, nombre, correo, celular FROM repartidores WHERE correo = ? AND contrasena = ? LIMIT 1");
 $stmt->execute([$correo, $contrasena]);
 $rep = $stmt->fetch();
 
@@ -61,6 +61,8 @@ if (!$rep) {
 $token = jwt_encode([
     'id'     => (int)$rep['id'],
     'nombre' => $rep['nombre'],
+    'correo' => $rep['correo'] ?? '',
+    'celular'=> $rep['celular'] ?? '',
     'rol'    => 'repartidor',
     'exp'    => time() + JWT_TTL,
 ]);

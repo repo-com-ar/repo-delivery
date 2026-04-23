@@ -114,6 +114,18 @@ $inicial = strtoupper(mb_substr($rep['nombre'] ?? 'R', 0, 1));
           <span class="profile-label">ID</span>
           <span class="profile-value">#<?= (int)($rep['id'] ?? 0) ?></span>
         </div>
+        <?php if (!empty($rep['celular'])): ?>
+        <div class="profile-row">
+          <span class="profile-label"><i class="fa-solid fa-phone" style="margin-right:4px"></i>Celular</span>
+          <span class="profile-value"><?= htmlspecialchars($rep['celular']) ?></span>
+        </div>
+        <?php endif; ?>
+        <?php if (!empty($rep['correo'])): ?>
+        <div class="profile-row">
+          <span class="profile-label"><i class="fa-solid fa-envelope" style="margin-right:4px"></i>Correo</span>
+          <span class="profile-value"><?= htmlspecialchars($rep['correo']) ?></span>
+        </div>
+        <?php endif; ?>
       </div>
 
       <div class="toggle-row">

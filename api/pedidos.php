@@ -41,13 +41,13 @@ $method = $_SERVER['REQUEST_METHOD'];
 // ─── GET: listar pedidos para repartidor ───────────────
 if ($method === 'GET') {
 
-    // Pedidos pendientes sin repartidor asignado (disponibles para tomar)
+    // Pedidos en asignacion sin repartidor asignado (disponibles para tomar)
     $stmtDisp = $pdo->query("
         SELECT id, numero, cliente, celular, correo, direccion, notas,
                total, estado, lat, lng, distancia_km, tiempo_min,
                created_at AS fecha
         FROM pedidos
-        WHERE estado = 'pendiente'
+        WHERE estado = 'asignacion'
           AND (repartidor_id IS NULL OR repartidor_id = 0)
         ORDER BY id DESC
     ");
@@ -60,11 +60,8 @@ if ($method === 'GET') {
                total, estado, lat, lng, distancia_km, tiempo_min,
                created_at AS fecha
         FROM pedidos
-        WHERE estado NOT IN ('entregado', 'cancelado')
-          AND (
-            repartidor_id = ?
-            OR (estado = 'listo' AND (repartidor_id IS NULL OR repartidor_id = 0))
-          )
+        WHERE estado = 'reparto'
+          AND repartidor_id = ?
         ORDER BY id ASC
     ");
     $stmtListos->execute([$repId]);
@@ -136,12 +133,12 @@ if ($method === 'PUT') {
             echo json_encode(['ok' => false, 'error' => 'No autorizado']);
             exit;
         }
-        // Atómico: solo asigna si aún no tiene repartidor y está pendiente
+        // Atómico: solo asigna si aún no tiene repartidor y está en asignacion, mueve a reparto
         $stmt = $pdo->prepare("
             UPDATE pedidos
-            SET repartidor_id = ?
+            SET repartidor_id = ?, estado = 'reparto'
             WHERE id = ?
-              AND estado = 'pendiente'
+              AND estado = 'asignacion'
               AND (repartidor_id IS NULL OR repartidor_id = 0)
         ");
         $stmt->execute([$repId, $id]);
@@ -158,7 +155,7 @@ if ($method === 'PUT') {
 
     // ── Cambiar estado ──
     $estado    = trim($body['estado'] ?? '');
-    $permitidos = ['entregado', 'listo'];
+    $permitidos = ['entregado'];
     if (!in_array($estado, $permitidos)) {
         http_response_code(400);
         echo json_encode(['ok' => false, 'error' => 'Acción o estado inválido']);
