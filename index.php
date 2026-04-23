@@ -155,7 +155,7 @@ $inicial = strtoupper(mb_substr($rep['nombre'] ?? 'R', 0, 1));
   <nav class="bottom-nav">
     <button class="nav-tab active" id="tab-inicio" onclick="ir('inicio')">
       <i class="fa-solid fa-house"></i>
-      <span>Inicio</span>
+      <span>Para asignar</span>
       <span class="nav-badge" id="badgeInicio" style="display:none">0</span>
     </button>
     <button class="nav-tab" id="tab-pendientes" onclick="ir('pendientes')">
@@ -173,6 +173,20 @@ $inicial = strtoupper(mb_substr($rep['nombre'] ?? 'R', 0, 1));
     </button>
   </nav>
 
+</div>
+
+<!-- Modal Ver Pedido -->
+<div class="modal-wrap" id="pedidoModal" onclick="if(event.target===this)closePedidoModal()">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title" id="pedidoModalTitle">Pedido</span>
+      <button class="modal-close" onclick="closePedidoModal()" aria-label="Cerrar">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="modal-body" id="pedidoModalBody"></div>
+  </div>
 </div>
 
 <!-- Loading -->

@@ -184,6 +184,23 @@ function dashCardDisponible(p) {
   const dir = p.direccion
     ? `<div class="dash-card-addr"><i class="fa-solid fa-location-dot"></i> ${esc(p.direccion)}</div>`
     : '';
+
+  const MAPS_KEY = 'AIzaSyDXN7-CpoFdxh_6V-_7UQkPzWFbX6_T1p0';
+  let mapaHtml = '';
+  const q = (p.lat && p.lng) ? `${p.lat},${p.lng}`
+          : p.direccion     ? encodeURIComponent(p.direccion)
+          : null;
+  if (q) {
+    const src = `https://www.google.com/maps/embed/v1/place?key=${MAPS_KEY}&q=${q}&zoom=16`;
+    mapaHtml = `
+      <div class="card-map-wrap dash-card-map">
+        <iframe class="card-map-frame" src="${src}" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+      </div>`;
+  }
+
+  const distTxt = p.distancia_km ? `${p.distancia_km} km` : '— km';
+  const tiempoTxt = p.tiempo_min ? `~${p.tiempo_min} min` : '~— min';
+
   return `
     <div class="dash-card dash-card--disponible">
       <div class="dash-card-strip"></div>
@@ -192,16 +209,75 @@ function dashCardDisponible(p) {
           <span class="dash-card-num">${esc(p.numero)}</span>
           <span class="dash-card-time">${tiempoRelativo(p.fecha)}</span>
         </div>
-        <div class="dash-card-bottom">
-          <span class="dash-card-cliente">${esc(p.cliente)}</span>
-          <span class="dash-card-total">$${fmt(p.total)}</span>
+        <div class="dash-card-travel">
+          <span><i class="fa-solid fa-route"></i> ${distTxt}</span>
+          <span><i class="fa-solid fa-clock"></i> ${tiempoTxt}</span>
         </div>
         ${dir}
+        ${mapaHtml}
+        <button class="btn-ver-pedido" onclick="event.stopPropagation();verPedidoDisponible(${p.id})">
+          <i class="fa-solid fa-eye"></i> Ver pedido
+        </button>
         <button class="btn-tomar" data-tomar="${p.id}" onclick="event.stopPropagation();tomarPedido(${p.id})">
           <i class="fa-solid fa-hand"></i> Tomar pedido
         </button>
       </div>
     </div>`;
+}
+
+function verPedidoDisponible(id) {
+  const p = state.disponibles.find(x => x.id === id);
+  if (!p) { toast('El pedido ya no está disponible'); return; }
+
+  const MAPS_KEY = 'AIzaSyDXN7-CpoFdxh_6V-_7UQkPzWFbX6_T1p0';
+  const q = (p.lat && p.lng) ? `${p.lat},${p.lng}`
+          : p.direccion     ? encodeURIComponent(p.direccion)
+          : null;
+  const mapaHtml = q ? `
+    <div class="card-map-wrap">
+      <iframe class="card-map-frame" src="https://www.google.com/maps/embed/v1/place?key=${MAPS_KEY}&q=${q}&zoom=16" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+    </div>` : '';
+
+  const itemsHtml = (p.items || []).map(it => `
+    <div class="pm-item">
+      <span class="pm-item-qty">${it.cantidad}x</span>
+      <span class="pm-item-name">${esc(it.nombre)}</span>
+      <span class="pm-item-price">$${fmt(it.precio * it.cantidad)}</span>
+    </div>`).join('');
+
+  const info = [
+    p.celular   ? `<div class="pm-row"><i class="fa-solid fa-phone"></i><a href="tel:${esc(p.celular)}">${esc(p.celular)}</a></div>` : '',
+    p.correo    ? `<div class="pm-row"><i class="fa-solid fa-envelope"></i><span>${esc(p.correo)}</span></div>` : '',
+    p.direccion ? `<div class="pm-row"><i class="fa-solid fa-location-dot"></i><span>${esc(p.direccion)}</span></div>` : '',
+    p.distancia_km ? `<div class="pm-row"><i class="fa-solid fa-route"></i><span>${p.distancia_km} km · ~${p.tiempo_min} min</span></div>` : '',
+    p.notas     ? `<div class="pm-row"><i class="fa-solid fa-note-sticky"></i><span>${esc(p.notas)}</span></div>` : '',
+  ].filter(Boolean).join('');
+
+  document.getElementById('pedidoModalTitle').textContent = p.numero || 'Pedido';
+  document.getElementById('pedidoModalBody').innerHTML = `
+    <div class="pm-block">
+      <div class="pm-block-title">Cliente</div>
+      <div class="pm-row"><i class="fa-solid fa-user"></i><span>${esc(p.cliente || '—')}</span></div>
+      ${info}
+      <div class="pm-row"><i class="fa-solid fa-clock"></i><span>${tiempoRelativo(p.fecha)}</span></div>
+    </div>
+    ${mapaHtml ? `<div class="pm-block"><div class="pm-block-title">Ubicación</div>${mapaHtml}</div>` : ''}
+    <div class="pm-block">
+      <div class="pm-block-title">Productos</div>
+      <div class="pm-items">${itemsHtml || '<div class="pm-item"><span></span><span>Sin productos</span><span></span></div>'}</div>
+      <div class="pm-total-row"><span>Total</span><span>$${fmt(p.total)}</span></div>
+    </div>
+    <button class="btn-tomar" data-tomar-modal="${p.id}" onclick="tomarPedido(${p.id})">
+      <i class="fa-solid fa-hand"></i> Tomar pedido
+    </button>`;
+
+  document.getElementById('pedidoModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closePedidoModal() {
+  document.getElementById('pedidoModal').classList.remove('open');
+  document.body.style.overflow = '';
 }
 
 function dashCardDelivered(p) {
@@ -223,8 +299,8 @@ function dashCardDelivered(p) {
 }
 
 async function tomarPedido(id) {
-  const btn = document.querySelector(`[data-tomar="${id}"]`);
-  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Tomando…'; }
+  const botones = document.querySelectorAll(`[data-tomar="${id}"], [data-tomar-modal="${id}"]`);
+  botones.forEach(b => { b.disabled = true; b.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Tomando…'; });
 
   try {
     const r = await fetch(API_PEDIDOS, {
@@ -238,15 +314,16 @@ async function tomarPedido(id) {
     if (data.ok) {
       toast('✅ Pedido tomado — aparece en "Para entregar"');
       state.disponibles = state.disponibles.filter(p => p.id !== id);
+      closePedidoModal();
       renderDashboard();
       actualizarBadges();
     } else {
       toast('⚠️ ' + (data.error || 'No se pudo tomar el pedido'));
-      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-hand"></i> Tomar pedido'; }
+      botones.forEach(b => { b.disabled = false; b.innerHTML = '<i class="fa-solid fa-hand"></i> Tomar pedido'; });
     }
   } catch (e) {
     toast('Error de conexión');
-    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-hand"></i> Tomar pedido'; }
+    botones.forEach(b => { b.disabled = false; b.innerHTML = '<i class="fa-solid fa-hand"></i> Tomar pedido'; });
   }
 }
 

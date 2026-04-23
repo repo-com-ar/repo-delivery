@@ -304,6 +304,54 @@ button { font-family: inherit; }
 }
 .card-map-open:active { background: rgba(59,130,246,.14); }
 .card-map-wrap--nocoords { border: none; }
+.dash-card-map { margin: 8px 0; }
+.dash-card-map .card-map-frame { height: 130px; }
+
+.dash-card-travel {
+  display: flex; gap: 16px; margin-top: 4px;
+  font-size: .82rem; font-weight: 600; color: var(--text);
+}
+.dash-card-travel i { color: var(--primary); margin-right: 4px; }
+
+.btn-ver-pedido {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; margin-top: 8px; padding: 10px;
+  background: var(--surface2, rgba(0,0,0,.04)); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px; cursor: pointer;
+  font-size: .85rem; font-weight: 600;
+}
+.btn-ver-pedido:active { background: var(--border); }
+
+/* ===== Modal: detalle de pedido ===== */
+.pm-block { margin-bottom: 14px; }
+.pm-block-title {
+  font-size: .72rem; font-weight: 700; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 6px; letter-spacing: .04em;
+}
+.pm-row {
+  display: flex; align-items: flex-start; gap: 8px;
+  font-size: .88rem; color: var(--text); padding: 4px 0;
+}
+.pm-row i { color: var(--primary); margin-top: 3px; flex-shrink: 0; width: 14px; }
+.pm-row a { color: var(--info, #3b82f6); text-decoration: none; }
+.pm-items {
+  border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+}
+.pm-item {
+  display: grid; grid-template-columns: auto 1fr auto;
+  gap: 10px; padding: 9px 12px; font-size: .85rem;
+  border-bottom: 1px solid var(--border);
+}
+.pm-item:last-child { border-bottom: none; }
+.pm-item-qty { font-weight: 700; color: var(--primary); }
+.pm-item-name { color: var(--text); }
+.pm-item-price { font-weight: 600; color: var(--text); }
+.pm-total-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 4px 0; margin-top: 6px;
+  border-top: 1.5px solid var(--border);
+  font-weight: 800; font-size: .95rem;
+}
 
 /* ===== Entregado card (historial) ===== */
 .card-entregado { opacity: .75; }
