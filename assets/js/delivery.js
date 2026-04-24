@@ -21,9 +21,142 @@ const state = {
 document.addEventListener('DOMContentLoaded', () => {
   initTema();
   initSonido();
+  initSeguimiento();
+  initHeartbeat();
   cargar(true);
   setInterval(cargar, REFRESH_MS);
 });
+
+// ─── Heartbeat "en línea" ──────────────────────────
+const HEARTBEAT_MS = 30000;
+let heartbeatTimer = null;
+
+function initHeartbeat() {
+  // Arranca o pausa según la visibilidad actual
+  aplicarHeartbeat();
+  document.addEventListener('visibilitychange', aplicarHeartbeat);
+}
+
+function aplicarHeartbeat() {
+  if (document.hidden) {
+    if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+    return;
+  }
+  if (heartbeatTimer) return; // ya activo
+  enviarHeartbeat();
+  heartbeatTimer = setInterval(enviarHeartbeat, HEARTBEAT_MS);
+}
+
+async function enviarHeartbeat() {
+  try {
+    await fetch('api/heartbeat', { method: 'POST', credentials: 'include' });
+  } catch (_) { /* silencioso */ }
+}
+
+// ─── Seguimiento GPS ───────────────────────────────
+const SEGUIMIENTO_MIN_MS = 30000;   // no enviar más seguido que esto
+let geoWatchId          = null;
+let geoLastSentAt       = 0;
+let geoLastPos          = null;
+
+function initSeguimiento() {
+  // Por defecto desactivado (requiere consentimiento explícito + permiso de GPS)
+  const activo = localStorage.getItem('deliverySeguimiento') === '1';
+  const toggle = document.getElementById('seguimientoToggle');
+  if (toggle) toggle.checked = activo;
+  if (activo) iniciarSeguimiento();
+}
+
+async function toggleSeguimiento() {
+  const toggle = document.getElementById('seguimientoToggle');
+  const activo = !!(toggle && toggle.checked);
+
+  if (activo) {
+    const ok = await iniciarSeguimiento();
+    if (!ok) {
+      if (toggle) toggle.checked = false;
+      return;
+    }
+    localStorage.setItem('deliverySeguimiento', '1');
+    toast('📡 Seguimiento activado');
+  } else {
+    detenerSeguimiento();
+    localStorage.setItem('deliverySeguimiento', '0');
+    notificarSeguimientoApagado();
+    toast('⏸ Seguimiento desactivado');
+  }
+}
+
+async function notificarSeguimientoApagado() {
+  try {
+    await fetch('api/ubicacion', {
+      method: 'DELETE',
+      credentials: 'include',
+      keepalive: true, // garantiza que se complete aunque se navegue de página
+    });
+  } catch (_) { /* silencioso */ }
+}
+
+async function iniciarSeguimiento() {
+  if (!('geolocation' in navigator)) {
+    toast('Este dispositivo no soporta geolocalización');
+    return false;
+  }
+  if (geoWatchId !== null) return true; // ya activo
+
+  try {
+    geoWatchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        geoLastPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        const ahora = Date.now();
+        if (ahora - geoLastSentAt >= SEGUIMIENTO_MIN_MS) {
+          geoLastSentAt = ahora;
+          enviarUbicacion(geoLastPos.lat, geoLastPos.lng);
+        }
+      },
+      (err) => {
+        console.warn('geoWatch error', err);
+        if (err.code === err.PERMISSION_DENIED) {
+          toast('Permiso de ubicación denegado');
+          detenerSeguimiento();
+          const toggle = document.getElementById('seguimientoToggle');
+          if (toggle) toggle.checked = false;
+          localStorage.setItem('deliverySeguimiento', '0');
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 }
+    );
+    return true;
+  } catch (e) {
+    console.error('iniciarSeguimiento error', e);
+    toast('No se pudo iniciar el seguimiento');
+    return false;
+  }
+}
+
+function detenerSeguimiento() {
+  if (geoWatchId !== null) {
+    try { navigator.geolocation.clearWatch(geoWatchId); } catch (_) {}
+    geoWatchId = null;
+  }
+  geoLastPos = null;
+  geoLastSentAt = 0;
+}
+
+async function enviarUbicacion(lat, lng) {
+  if (geoWatchId === null) return; // Seguimiento apagado entre el callback y este fetch
+  try {
+    await fetch('api/ubicacion', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lat, lng }),
+    });
+  } catch (e) {
+    // Silencioso: si no hay red, reintentará con el próximo tick
+    console.warn('enviarUbicacion error', e);
+  }
+}
 
 function initTema() {
   const t = localStorage.getItem('deliveryTema') || 'light';

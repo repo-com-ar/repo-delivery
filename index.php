@@ -146,6 +146,14 @@ $inicial = strtoupper(mb_substr($rep['nombre'] ?? 'R', 0, 1));
       </div>
 
       <div class="toggle-row">
+        <span class="toggle-label"><i class="fa-solid fa-satellite-dish" style="color:var(--primary);margin-right:6px"></i> Seguimiento en tiempo real</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="seguimientoToggle" onchange="toggleSeguimiento()">
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
         <span class="toggle-label"><i class="fa-solid fa-moon" style="color:var(--primary);margin-right:6px"></i> Modo oscuro</span>
         <label class="toggle-switch">
           <input type="checkbox" id="temaToggle" onchange="toggleTema()">
