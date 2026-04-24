@@ -13,7 +13,7 @@ $inicial = strtoupper(mb_substr($rep['nombre'] ?? 'R', 0, 1));
   <link rel="icon" href="favicon.ico">
   <link rel="icon" type="image/png" sizes="96x96" href="favicon/favicon-96x96.png">
   <link rel="apple-touch-icon" href="favicon/apple-icon-180x180.png">
-  <link rel="manifest" href="favicon/manifest.json">
+  <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="assets/css/delivery.css?v=<?= filemtime(__DIR__ . '/assets/css/delivery.css') ?>">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <meta name="theme-color" content="#FFA000">
@@ -129,6 +129,15 @@ $inicial = strtoupper(mb_substr($rep['nombre'] ?? 'R', 0, 1));
       </div>
 
       <div class="toggle-row">
+        <span class="toggle-label"><i class="fa-solid fa-mobile-screen-button" style="color:var(--primary);margin-right:6px"></i> Notificaciones al celular</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="pushToggle" onchange="onTogglePush(event)">
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        </label>
+      </div>
+      <div id="pushStatus" style="display:none;font-size:.78rem;color:var(--text-secondary);padding:0 4px 10px">—</div>
+
+      <div class="toggle-row">
         <span class="toggle-label"><i class="fa-solid fa-bell" style="color:var(--primary);margin-right:6px"></i> Notificaciones de sonido</span>
         <label class="toggle-switch">
           <input type="checkbox" id="sonidoToggle" onchange="toggleSonido()">
@@ -154,12 +163,12 @@ $inicial = strtoupper(mb_substr($rep['nombre'] ?? 'R', 0, 1));
   <!-- ===== Bottom Nav ===== -->
   <nav class="bottom-nav">
     <button class="nav-tab active" id="tab-inicio" onclick="ir('inicio')">
-      <i class="fa-solid fa-house"></i>
+      <i class="fa-solid fa-clock"></i>
       <span>Para asignar</span>
       <span class="nav-badge" id="badgeInicio" style="display:none">0</span>
     </button>
     <button class="nav-tab" id="tab-pendientes" onclick="ir('pendientes')">
-      <i class="fa-solid fa-bag-shopping"></i>
+      <i class="fa-solid fa-motorcycle"></i>
       <span>Para entregar</span>
       <span class="nav-badge" id="badgePendientes" style="display:none">0</span>
     </button>
@@ -197,7 +206,27 @@ $inicial = strtoupper(mb_substr($rep['nombre'] ?? 'R', 0, 1));
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
+<!-- Banner iOS: instalar PWA en pantalla de inicio -->
+<div class="ios-install-backdrop" id="pushInstallBanner" onclick="if(event.target===this)cerrarInstallBannerIOS()">
+  <div class="ios-install-card">
+    <button class="ios-install-close" onclick="cerrarInstallBannerIOS()" aria-label="Cerrar">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+    <div class="ios-install-icon"><i class="fa-solid fa-mobile-screen-button"></i></div>
+    <div class="ios-install-title">Instalá la app para recibir notificaciones</div>
+    <p class="ios-install-text">
+      En iPhone, Safari solo permite notificaciones cuando la app está en la pantalla de inicio.
+    </p>
+    <ol class="ios-install-steps">
+      <li>Tocá el botón <b>Compartir</b> <i class="fa-solid fa-arrow-up-from-bracket"></i> de Safari.</li>
+      <li>Deslizá y elegí <b>Agregar a pantalla de inicio</b>.</li>
+      <li>Abrí la app desde el nuevo ícono y activá el toggle otra vez.</li>
+    </ol>
+  </div>
+</div>
+
 <script src="assets/js/delivery.js?v=<?= filemtime(__DIR__ . '/assets/js/delivery.js') ?>"></script>
+<script src="assets/js/push.js?v=<?= filemtime(__DIR__ . '/assets/js/push.js') ?>"></script>
 <script>
   function confirmarLogout() {
     if (confirm('¿Cerrar sesión?')) logout();

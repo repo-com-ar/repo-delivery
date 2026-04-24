@@ -43,5 +43,6 @@ function setAuthCookie(string $token): void {
 }
 
 function clearAuthCookie(): void {
-    setcookie('delivery_token', '', ['expires' => time() - 3600, 'path' => '/']);
+    setcookie('delivery_token', '', time() - 3600, '/');
+    unset($_COOKIE['delivery_token']);
 }

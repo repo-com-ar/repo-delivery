@@ -146,9 +146,8 @@ async function marcarEntregado(id) {
   }
 }
 
-async function logout() {
-  await fetch(API_AUTH, { method: 'DELETE', credentials: 'include' });
-  location.href = 'login.php';
+function logout() {
+  location.href = 'logout.php';
 }
 
 // ─── Render ────────────────────────────────────────
@@ -570,9 +569,5 @@ function toast(msg) {
   toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
 }
 
-// Pedir permiso notificaciones al interactuar
-document.addEventListener('click', () => {
-  if ('Notification' in window && Notification.permission === 'default') {
-    Notification.requestPermission();
-  }
-}, { once: true });
+// El permiso de notificaciones se pide explícitamente desde el toggle
+// en el perfil (push.js), no de manera automática al primer click.
