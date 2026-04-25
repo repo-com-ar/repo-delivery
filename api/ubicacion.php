@@ -11,7 +11,7 @@
 ini_set('display_errors', 0);
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, DELETE, OPTIONS');
+header('Access-Control-Allow-Methods: POST, DELETE, PUT, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { exit; }
@@ -54,6 +54,19 @@ if ($method === 'DELETE') {
     } catch (Exception $e) {
         http_response_code(500);
         echo json_encode(['ok' => false, 'error' => 'Error al desactivar seguimiento']);
+    }
+    exit;
+}
+
+// PUT — activa el flag sin registrar coordenadas (llamado al encender el switch)
+if ($method === 'PUT') {
+    try {
+        $pdo->prepare("UPDATE repartidores SET ubicacion_activa = 1 WHERE id = ?")
+            ->execute([$repId]);
+        echo json_encode(['ok' => true]);
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => 'Error al activar seguimiento']);
     }
     exit;
 }

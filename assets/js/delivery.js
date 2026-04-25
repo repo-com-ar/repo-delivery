@@ -77,6 +77,7 @@ async function toggleSeguimiento() {
       if (toggle) toggle.checked = false;
       return;
     }
+    notificarSeguimientoActivado();
     localStorage.setItem('deliverySeguimiento', '1');
     toast('📡 Seguimiento activado');
   } else {
@@ -85,6 +86,15 @@ async function toggleSeguimiento() {
     notificarSeguimientoApagado();
     toast('⏸ Seguimiento desactivado');
   }
+}
+
+async function notificarSeguimientoActivado() {
+  try {
+    await fetch('api/ubicacion', {
+      method: 'PUT',
+      credentials: 'include',
+    });
+  } catch (_) { /* silencioso */ }
 }
 
 async function notificarSeguimientoApagado() {
