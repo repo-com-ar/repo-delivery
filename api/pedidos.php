@@ -20,6 +20,7 @@ $repPayload = authRepartidor();
 $repId      = (int)($repPayload['id'] ?? 0);
 
 require_once __DIR__ . '/../../repo-api/config/db.php';
+require_once __DIR__ . '/../../repo-api/lib/pushservice.php';
 
 try {
     $pdo = getDB();
@@ -149,6 +150,22 @@ if ($method === 'PUT') {
             exit;
         }
 
+        // Notificar al cliente que el pedido salió en reparto
+        $info = $pdo->prepare("SELECT cliente_id, numero FROM pedidos WHERE id = ?");
+        $info->execute([$id]);
+        $row = $info->fetch();
+        if ($row && !empty($row['cliente_id'])) {
+            @push_enviar_a('cliente', (int)$row['cliente_id'],
+                '🛵 Tu pedido está en camino',
+                'Pedido ' . ($row['numero'] ?? '') . ' — Llega pronto a tu domicilio.',
+                [
+                    'url'       => './',
+                    'tag'       => 'pedido-cli-' . $id,
+                    'pedido_id' => $id,
+                ]
+            );
+        }
+
         echo json_encode(['ok' => true, 'id' => $id]);
         exit;
     }
@@ -169,6 +186,24 @@ if ($method === 'PUT') {
         http_response_code(404);
         echo json_encode(['ok' => false, 'error' => 'Pedido no encontrado']);
         exit;
+    }
+
+    // Notificar al cliente cuando el pedido fue entregado
+    if ($estado === 'entregado') {
+        $info = $pdo->prepare("SELECT cliente_id, numero FROM pedidos WHERE id = ?");
+        $info->execute([$id]);
+        $row = $info->fetch();
+        if ($row && !empty($row['cliente_id'])) {
+            @push_enviar_a('cliente', (int)$row['cliente_id'],
+                '✅ ¡Pedido entregado!',
+                'Pedido ' . ($row['numero'] ?? '') . ' — ¡Gracias por tu compra!',
+                [
+                    'url'       => './',
+                    'tag'       => 'pedido-cli-' . $id,
+                    'pedido_id' => $id,
+                ]
+            );
+        }
     }
 
     echo json_encode(['ok' => true, 'id' => $id, 'estado' => $estado]);
