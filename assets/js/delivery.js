@@ -748,3 +748,94 @@ function toast(msg) {
 
 // El permiso de notificaciones se pide explícitamente desde el toggle
 // en el perfil (push.js), no de manera automática al primer click.
+
+/* ===== Campana de notificaciones ===== */
+const NOTIF_API   = 'api/notificaciones.php';
+let   notifData   = [];
+let   notifPanelOpen = false;
+let   notifPollTimer = null;
+
+async function fetchNotifCount() {
+  try {
+    const res  = await fetch(NOTIF_API);
+    const data = await res.json();
+    if (!data.ok) return;
+    const dot = document.getElementById('notifDot');
+    if (dot) dot.style.display = data.sin_leer > 0 ? '' : 'none';
+    notifData = data.data || [];
+    // Si el panel está abierto, re-render en vivo
+    if (notifPanelOpen) renderNotifList();
+  } catch (e) { /* red caída */ }
+}
+
+function renderNotifList() {
+  const list = document.getElementById('notifList');
+  if (!notifData.length) {
+    list.innerHTML = '<div class="notif-empty">Sin notificaciones</div>';
+    return;
+  }
+  list.innerHTML = notifData.map(n => {
+    const unread = Number(n.leida) === 0;
+    const ts = n.created_at
+      ? new Date(n.created_at.replace(' ', 'T')).toLocaleString('es-AR', {
+          day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit', hour12: false
+        })
+      : '';
+    return '<div class="notif-item' + (unread ? ' unread' : '') + '">' +
+      '<div class="notif-item-title">' +
+        (unread ? '<span class="unread-dot"></span>' : '') +
+        escHtml(n.titulo || 'Notificación') +
+      '</div>' +
+      (n.cuerpo ? '<div class="notif-item-body">' + escHtml(n.cuerpo) + '</div>' : '') +
+      '<div class="notif-item-time">' + ts + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function toggleNotifPanel() {
+  if (notifPanelOpen) {
+    cerrarNotifPanel();
+  } else {
+    // Cargar datos frescos antes de abrir
+    await fetchNotifCount();
+    renderNotifList();
+    document.getElementById('notifPanel').classList.add('open');
+    document.getElementById('notifOverlay').classList.add('open');
+    notifPanelOpen = true;
+    // Marcar todas como leídas al abrir
+    marcarTodasLeidas();
+  }
+}
+
+function cerrarNotifPanel() {
+  document.getElementById('notifPanel').classList.remove('open');
+  document.getElementById('notifOverlay').classList.remove('open');
+  notifPanelOpen = false;
+}
+
+async function marcarTodasLeidas() {
+  const sinLeer = notifData.filter(n => Number(n.leida) === 0);
+  if (!sinLeer.length) return;
+  try {
+    await fetch(NOTIF_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accion: 'marcar_leidas', ids: [] }), // ids vacío = todas
+    });
+    // Quitar el punto rojo y marcar local
+    notifData.forEach(n => { n.leida = 1; });
+    const dot = document.getElementById('notifDot');
+    if (dot) dot.style.display = 'none';
+    renderNotifList();
+  } catch (e) { /* silencioso */ }
+}
+
+// Polling: contar sin leer cada 30 s
+document.addEventListener('DOMContentLoaded', function() {
+  fetchNotifCount();
+  notifPollTimer = setInterval(fetchNotifCount, 30000);
+});

@@ -39,11 +39,29 @@ $inicial = strtoupper(mb_substr($rep['nombre'] ?? 'R', 0, 1));
       <button class="btn-icon" id="btnRefresh" onclick="cargar()" title="Actualizar">
         <i class="fa-solid fa-rotate-right"></i>
       </button>
+      <button class="btn-icon btn-notif" id="btnNotif" onclick="toggleNotifPanel()" title="Notificaciones" aria-label="Notificaciones">
+        <i class="fa-solid fa-bell"></i>
+        <span class="notif-dot" id="notifDot" style="display:none"></span>
+      </button>
       <button class="btn-icon" id="btnInstall" onclick="pwaInstall()" title="Instalar aplicación" style="display:none">
         <i class="fa-solid fa-download" style="font-size:18px"></i>
       </button>
     </div>
   </header>
+
+  <!-- Panel de notificaciones -->
+  <div class="notif-panel" id="notifPanel">
+    <div class="notif-panel-header">
+      <span class="notif-panel-title">Notificaciones</span>
+      <button class="notif-panel-close" onclick="cerrarNotifPanel()">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="notif-list" id="notifList">
+      <div class="notif-empty">Sin notificaciones</div>
+    </div>
+  </div>
+  <div class="notif-overlay" id="notifOverlay" onclick="cerrarNotifPanel()"></div>
 
   <!-- ===== Content ===== -->
   <main class="content">
