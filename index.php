@@ -16,7 +16,7 @@ $inicial = strtoupper(mb_substr($rep['nombre'] ?? 'R', 0, 1));
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="assets/css/delivery.css?v=<?= filemtime(__DIR__ . '/assets/css/delivery.css') ?>">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <meta name="theme-color" content="#FFA000">
+  <meta name="theme-color" content="#ffffff" id="metaThemeColor">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -28,11 +28,8 @@ $inicial = strtoupper(mb_substr($rep['nombre'] ?? 'R', 0, 1));
   <!-- ===== Header ===== -->
   <header class="header">
     <div class="header-left">
-      <div class="header-avatar"><?= $inicial ?></div>
-      <div>
-        <div class="header-name"><?= htmlspecialchars($rep['nombre'] ?? 'Repartidor') ?></div>
-        <div class="header-role">Repartidor</div>
-      </div>
+      <img class="logo-light" src="assets/img/repo_logo_black.png" alt="Repo Online" style="height:30px; width:auto;">
+      <img class="logo-dark"  src="assets/img/repo_logo_withe.png" alt="Repo Online" style="height:30px; width:auto;">
     </div>
     <div class="header-right">
       <div class="live-badge">
@@ -41,6 +38,9 @@ $inicial = strtoupper(mb_substr($rep['nombre'] ?? 'R', 0, 1));
       </div>
       <button class="btn-icon" id="btnRefresh" onclick="cargar()" title="Actualizar">
         <i class="fa-solid fa-rotate-right"></i>
+      </button>
+      <button class="btn-icon" id="btnInstall" onclick="pwaInstall()" title="Instalar aplicación" style="display:none">
+        <i class="fa-solid fa-download" style="font-size:18px"></i>
       </button>
     </div>
   </header>
@@ -126,6 +126,9 @@ $inicial = strtoupper(mb_substr($rep['nombre'] ?? 'R', 0, 1));
           <span class="profile-value"><?= htmlspecialchars($rep['correo']) ?></span>
         </div>
         <?php endif; ?>
+        <button class="btn-logout" onclick="confirmarLogout()">
+          <i class="fa-solid fa-right-from-bracket"></i> Cerrar sesión
+        </button>
       </div>
 
       <div class="toggle-row">
@@ -161,9 +164,6 @@ $inicial = strtoupper(mb_substr($rep['nombre'] ?? 'R', 0, 1));
         </label>
       </div>
 
-      <button class="btn-logout" onclick="confirmarLogout()">
-        <i class="fa-solid fa-right-from-bracket"></i> Cerrar sesión
-      </button>
     </div>
 
   </main>
@@ -238,6 +238,11 @@ $inicial = strtoupper(mb_substr($rep['nombre'] ?? 'R', 0, 1));
 <script>
   function confirmarLogout() {
     if (confirm('¿Cerrar sesión?')) logout();
+  }
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 </script>
 </body>

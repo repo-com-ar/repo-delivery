@@ -3,6 +3,31 @@
    Auto-refresh cada 40 s. Mobile-first.
    ================================================ */
 
+/* ===== PWA Install — capturado lo antes posible ===== */
+let _pwaPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _pwaPrompt = e;
+  const btn = document.getElementById('btnInstall');
+  if (btn) btn.style.display = '';
+});
+window.addEventListener('appinstalled', () => {
+  _pwaPrompt = null;
+  const btn = document.getElementById('btnInstall');
+  if (btn) btn.style.display = 'none';
+});
+
+async function pwaInstall() {
+  if (!_pwaPrompt) return;
+  _pwaPrompt.prompt();
+  const { outcome } = await _pwaPrompt.userChoice;
+  if (outcome === 'accepted') {
+    _pwaPrompt = null;
+    const btn = document.getElementById('btnInstall');
+    if (btn) btn.style.display = 'none';
+  }
+}
+
 const API_PEDIDOS = 'api/pedidos';
 const API_AUTH    = 'api/auth';
 const REFRESH_MS  = 40000;
@@ -168,11 +193,19 @@ async function enviarUbicacion(lat, lng) {
   }
 }
 
+const THEME_COLORS = { light: '#ffffff', dark: '#242b35' };
+
+function applyThemeColor(t) {
+  const meta = document.getElementById('metaThemeColor');
+  if (meta) meta.setAttribute('content', THEME_COLORS[t] || THEME_COLORS.light);
+}
+
 function initTema() {
   const t = localStorage.getItem('deliveryTema') || 'light';
   document.documentElement.setAttribute('data-theme', t);
   const toggle = document.getElementById('temaToggle');
   if (toggle) toggle.checked = (t === 'dark');
+  applyThemeColor(t);
 }
 
 function toggleTema() {
@@ -180,6 +213,7 @@ function toggleTema() {
   const nuevo = dark ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', nuevo);
   localStorage.setItem('deliveryTema', nuevo);
+  applyThemeColor(nuevo);
 }
 
 function initSonido() {
