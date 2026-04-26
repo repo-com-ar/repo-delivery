@@ -3,6 +3,8 @@ require_once __DIR__ . '/lib/auth_check.php';
 requireAuth();
 $rep = authRepartidor();
 $inicial = strtoupper(mb_substr($rep['nombre'] ?? 'R', 0, 1));
+require_once __DIR__ . '/../repo-api/config/db.php';
+$googleMapsKey = getConfigValue('google_maps_key');
 ?><!DOCTYPE html>
 <html lang="es" data-theme="light">
 <head>
@@ -251,6 +253,7 @@ $inicial = strtoupper(mb_substr($rep['nombre'] ?? 'R', 0, 1));
   </div>
 </div>
 
+<script>window.MAPS_KEY = '<?= htmlspecialchars($googleMapsKey) ?>';</script>
 <script src="assets/js/delivery.js?v=<?= filemtime(__DIR__ . '/assets/js/delivery.js') ?>"></script>
 <script src="assets/js/push.js?v=<?= filemtime(__DIR__ . '/assets/js/push.js') ?>"></script>
 <script>

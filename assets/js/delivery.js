@@ -361,7 +361,7 @@ function dashCardDisponible(p) {
     ? `<div class="dash-card-addr"><i class="fa-solid fa-location-dot"></i> ${esc(p.direccion)}</div>`
     : '';
 
-  const MAPS_KEY = 'AIzaSyDXN7-CpoFdxh_6V-_7UQkPzWFbX6_T1p0';
+  const MAPS_KEY = window.MAPS_KEY || '';
   let mapaHtml = '';
   const q = (p.lat && p.lng) ? `${p.lat},${p.lng}`
           : p.direccion     ? encodeURIComponent(p.direccion)
@@ -405,7 +405,7 @@ function verPedidoDisponible(id) {
   const p = state.disponibles.find(x => x.id === id);
   if (!p) { toast('El pedido ya no está disponible'); return; }
 
-  const MAPS_KEY = 'AIzaSyDXN7-CpoFdxh_6V-_7UQkPzWFbX6_T1p0';
+  const MAPS_KEY = window.MAPS_KEY || '';
   const q = (p.lat && p.lng) ? `${p.lat},${p.lng}`
           : p.direccion     ? encodeURIComponent(p.direccion)
           : null;
@@ -551,7 +551,7 @@ function cardListo(p) {
     </div>`).join('');
 
   // Mapa embebido Google Maps
-  const MAPS_KEY = 'AIzaSyDXN7-CpoFdxh_6V-_7UQkPzWFbX6_T1p0';
+  const MAPS_KEY = window.MAPS_KEY || '';
   let mapaHtml = '';
   if (p.lat && p.lng) {
     const q   = `${p.lat},${p.lng}`;

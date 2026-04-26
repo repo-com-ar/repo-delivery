@@ -28,7 +28,7 @@ if (authRepartidor()) {
       <img class="logo-light" src="assets/img/repo_logo_black.png" alt="Repo" style="height:52px;width:auto;display:block;margin:0 auto">
       <img class="logo-dark"  src="assets/img/repo_logo_withe.png" alt="Repo" style="height:52px;width:auto;display:none;margin:0 auto">
     </div>
-    <p class="login-subtitle">Repo Delivery<br><span style="font-size:.78rem">Ingresá con tu correo y contraseña</span></p>
+    <p class="login-subtitle">Repo Delivery</p>
 
     <div class="error-msg" id="errorMsg"></div>
 
@@ -47,6 +47,10 @@ if (authRepartidor()) {
         <i class="fa-solid fa-right-to-bracket"></i> Ingresar
       </button>
     </form>
+
+    <p style="text-align:center;margin-top:18px;font-size:.83rem">
+      <a href="recuperar" style="color:var(--primary);font-weight:600">Olvidé mi contraseña</a>
+    </p>
 
   </div>
 </div>
