@@ -37,6 +37,38 @@ try {
     $pdo->exec("ALTER TABLE pedidos ADD COLUMN repartidor_id INT UNSIGNED DEFAULT NULL AFTER cliente_id");
 }
 
+// Tarifa según tipo de vehículo del repartidor (solo para mostrar pago estimado)
+$tarifa_base      = 0;
+$tarifa_km        = 0;
+$repartidorNombre = '';
+if ($repId) {
+    try {
+        // Paso 1: obtener tipo de vehículo del repartidor
+        $stVeh = $pdo->prepare("SELECT vehiculo, nombre FROM repartidores WHERE id = ? LIMIT 1");
+        $stVeh->execute([$repId]);
+        $vehRow = $stVeh->fetch();
+        $vehiculo          = $vehRow['vehiculo'] ?? null;
+        $repartidorNombre  = $vehRow['nombre']   ?? '';
+
+        // Paso 2: buscar tarifa para ese vehículo (activa primero, cualquiera como fallback)
+        if ($vehiculo) {
+            $stTar = $pdo->prepare("
+                SELECT precio_base, precio_por_km
+                FROM tarifas
+                WHERE tipo_vehiculo = ?
+                ORDER BY activa DESC, id DESC
+                LIMIT 1
+            ");
+            $stTar->execute([$vehiculo]);
+            $tr = $stTar->fetch();
+            if ($tr) {
+                $tarifa_base = (float)$tr['precio_base'];
+                $tarifa_km   = (float)$tr['precio_por_km'];
+            }
+        }
+    } catch (Exception $e) { /* tabla no disponible, continúa con pago_estimado = 0 */ }
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
 
 // ─── GET: listar pedidos para repartidor ───────────────
@@ -44,69 +76,80 @@ if ($method === 'GET') {
 
     // Pedidos en asignacion sin repartidor asignado (disponibles para tomar)
     $stmtDisp = $pdo->query("
-        SELECT id, numero, cliente, celular, correo, direccion, notas,
-               total, estado, lat, lng, distancia_km, tiempo_min,
-               created_at AS fecha
-        FROM pedidos
-        WHERE estado = 'asignacion'
-          AND (repartidor_id IS NULL OR repartidor_id = 0)
-        ORDER BY id DESC
+        SELECT p.id, p.numero, p.cliente, p.celular, p.correo, p.direccion, p.notas,
+               p.total, p.estado, p.retiro_lat, p.retiro_lng, p.entrega_lat, p.entrega_lng,
+               p.distancia_km, p.tiempo_min, p.created_at AS fecha,
+               d.nombre AS deposito_nombre, d.domicilio AS deposito_domicilio
+        FROM pedidos p
+        LEFT JOIN depositos d ON d.id = p.deposito_id
+        WHERE p.estado = 'asignacion'
+          AND (p.repartidor_id IS NULL OR p.repartidor_id = 0)
+        ORDER BY p.id DESC
     ");
     $disponibles = $stmtDisp->fetchAll();
 
-    // Para entregar: pedidos asignados a este repartidor (cualquier estado activo)
-    //               + pedidos en 'listo' sin repartidor asignado aún
+    // Para entregar: pedidos asignados a este repartidor
     $stmtListos = $pdo->prepare("
-        SELECT id, numero, cliente, celular, correo, direccion, notas,
-               total, estado, lat, lng, distancia_km, tiempo_min,
-               created_at AS fecha
-        FROM pedidos
-        WHERE estado = 'reparto'
-          AND repartidor_id = ?
-        ORDER BY id ASC
+        SELECT p.id, p.numero, p.cliente, p.celular, p.correo, p.direccion, p.notas,
+               p.total, p.repartidor_tarifa, p.estado, p.retiro_lat, p.retiro_lng, p.entrega_lat, p.entrega_lng,
+               p.distancia_km, p.tiempo_min, p.created_at AS fecha,
+               d.nombre AS deposito_nombre, d.domicilio AS deposito_domicilio
+        FROM pedidos p
+        LEFT JOIN depositos d ON d.id = p.deposito_id
+        WHERE p.estado = 'reparto'
+          AND p.repartidor_id = ?
+        ORDER BY p.id ASC
     ");
     $stmtListos->execute([$repId]);
     $listos = $stmtListos->fetchAll();
 
     // Entregados hoy por este repartidor o sin asignar
     $stmtEntregados = $pdo->prepare("
-        SELECT id, numero, cliente, celular, direccion, total, estado,
-               lat, lng, distancia_km, tiempo_min, created_at AS fecha,
-               updated_at AS entregado_at
-        FROM pedidos
-        WHERE estado = 'entregado'
-          AND (repartidor_id = ? OR repartidor_id IS NULL OR repartidor_id = 0)
-          AND DATE(updated_at) = CURDATE()
-        ORDER BY updated_at DESC
+        SELECT p.id, p.numero, p.cliente, p.celular, p.direccion, p.total, p.repartidor_tarifa, p.estado,
+               p.retiro_lat, p.retiro_lng, p.entrega_lat, p.entrega_lng,
+               p.distancia_km, p.tiempo_min, p.created_at AS fecha,
+               p.updated_at AS entregado_at,
+               d.nombre AS deposito_nombre, d.domicilio AS deposito_domicilio
+        FROM pedidos p
+        LEFT JOIN depositos d ON d.id = p.deposito_id
+        WHERE p.estado = 'entregado'
+          AND (p.repartidor_id = ? OR p.repartidor_id IS NULL OR p.repartidor_id = 0)
+          AND DATE(p.updated_at) = CURDATE()
+        ORDER BY p.updated_at DESC
         LIMIT 50
     ");
     $stmtEntregados->execute([$repId]);
     $entregados = $stmtEntregados->fetchAll();
 
-    // Items
+    // Items + pago estimado solo para disponibles
     foreach ($disponibles as &$p) {
         $st = $pdo->prepare("SELECT nombre, precio, cantidad FROM pedido_items WHERE pedido_id = ?");
         $st->execute([$p['id']]);
         $p['items'] = $st->fetchAll();
         $p['total'] = (float)$p['total'];
+        $km = (float)($p['distancia_km'] ?? 0);
+        $p['pago_estimado'] = round($tarifa_base + ($km * $tarifa_km), 2);
     }
     foreach ($listos as &$p) {
         $st = $pdo->prepare("SELECT nombre, precio, cantidad FROM pedido_items WHERE pedido_id = ?");
         $st->execute([$p['id']]);
         $p['items'] = $st->fetchAll();
-        $p['total'] = (float)$p['total'];
+        $p['total']             = (float)$p['total'];
+        $p['repartidor_tarifa'] = (float)($p['repartidor_tarifa'] ?? 0);
     }
     foreach ($entregados as &$p) {
-        $p['total'] = (float)$p['total'];
+        $p['total']             = (float)$p['total'];
+        $p['repartidor_tarifa'] = (float)($p['repartidor_tarifa'] ?? 0);
         $p['items'] = [];
     }
 
     echo json_encode([
-        'ok'          => true,
-        'disponibles' => $disponibles,
-        'listos'      => $listos,
-        'entregados'  => $entregados,
-        'stats'       => [
+        'ok'                => true,
+        'repartidor_nombre' => $repartidorNombre,
+        'disponibles'       => $disponibles,
+        'listos'            => $listos,
+        'entregados'        => $entregados,
+        'stats'             => [
             'disponibles' => count($disponibles),
             'listos'      => count($listos),
             'entregados'  => count($entregados),
@@ -134,15 +177,17 @@ if ($method === 'PUT') {
             echo json_encode(['ok' => false, 'error' => 'No autorizado']);
             exit;
         }
-        // Atómico: solo asigna si aún no tiene repartidor y está en asignacion, mueve a reparto
+        // Atómico: asigna repartidor, calcula pago y cambia estado en una sola operación
         $stmt = $pdo->prepare("
             UPDATE pedidos
-            SET repartidor_id = ?, estado = 'reparto'
+            SET repartidor_id   = ?,
+                repartidor_tarifa = ROUND(? + (COALESCE(distancia_km, 0) * ?), 2),
+                estado          = 'reparto'
             WHERE id = ?
               AND estado = 'asignacion'
               AND (repartidor_id IS NULL OR repartidor_id = 0)
         ");
-        $stmt->execute([$repId, $id]);
+        $stmt->execute([$repId, $tarifa_base, $tarifa_km, $id]);
 
         if ($stmt->rowCount() === 0) {
             http_response_code(409);

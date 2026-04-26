@@ -380,6 +380,30 @@ button { font-family: inherit; }
 .dash-card-map { margin: 8px 0; }
 .dash-card-map .card-map-frame { height: 130px; }
 
+.card-punto {
+  display: flex; align-items: flex-start; gap: 8px;
+  font-size: .82rem; color: var(--text); margin-top: 5px;
+  line-height: 1.35;
+}
+.card-punto i { color: var(--primary); flex-shrink: 0; margin-top: 2px; font-size: .78rem; }
+.btn-mostrar-ruta {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; margin-top: 10px; padding: 9px;
+  background: transparent; color: var(--primary);
+  border: 1.5px solid var(--primary); border-radius: 8px;
+  font-size: .82rem; font-weight: 700; cursor: pointer;
+  transition: background .15s;
+}
+.btn-mostrar-ruta:active { background: rgba(var(--primary-rgb, 255,160,0),.1); }
+.btn-whatsapp {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; margin-top: 8px; padding: 9px;
+  background: transparent; color: var(--primary);
+  border: 1.5px solid var(--primary); border-radius: 10px;
+  font-size: .82rem; font-weight: 700; cursor: pointer;
+  transition: background .15s;
+}
+.btn-whatsapp:active { background: rgba(var(--primary-rgb, 255,160,0),.1); }
 .dash-card-travel {
   display: flex; gap: 16px; margin-top: 4px;
   font-size: .82rem; font-weight: 600; color: var(--text);
@@ -546,6 +570,36 @@ button { font-family: inherit; }
 }
 .modal-body { flex: 1; overflow-y: auto; padding: 16px 18px; }
 
+/* ===== Modal Ruta ===== */
+.modal-ruta-wrap { align-items: center; justify-content: center; }
+.modal-ruta {
+  border-radius: 20px; width: calc(100% - 24px); max-width: 560px;
+  padding: 0; overflow: hidden;
+}
+.card-pago {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 8px; padding: 6px 10px;
+  background: var(--primary)18; border: 1px solid var(--primary)40;
+  border-radius: 8px;
+}
+.card-pago-label { font-size: .82rem; color: #fff; font-weight: 600; }
+.card-pago-valor { font-size: 1.2rem; font-weight: 800; color: var(--primary); }
+
+.ruta-modal-title {
+  padding: 10px 16px 8px; font-size: .95rem; font-weight: 700;
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.ruta-iframe {
+  flex: none; aspect-ratio: 1 / 1; width: 100%; border: none; display: block;
+}
+.btn-cerrar-ruta {
+  width: 100%; padding: 14px 16px; flex-shrink: 0;
+  background: var(--surface); border: none; border-top: 1px solid var(--border);
+  cursor: pointer; font-size: .95rem; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  color: var(--text);
+}
+
 /* ===== Dashboard ===== */
 .dash-stats {
   display: flex; gap: 12px; margin-bottom: 20px;
@@ -559,12 +613,12 @@ button { font-family: inherit; }
   font-size: 1.1rem; margin-bottom: 6px;
 }
 .dash-stat--pending .dash-stat-icon  { color: var(--primary); }
-.dash-stat--delivered .dash-stat-icon{ color: var(--success); }
+.dash-stat--delivered .dash-stat-icon{ color: var(--text); }
 .dash-stat-num {
   font-size: 2rem; font-weight: 800; line-height: 1;
 }
 .dash-stat--pending .dash-stat-num   { color: var(--primary); }
-.dash-stat--delivered .dash-stat-num { color: var(--success); }
+.dash-stat--delivered .dash-stat-num { color: var(--text); }
 .dash-stat-label {
   font-size: .72rem; color: var(--muted); font-weight: 600;
   margin-top: 4px; text-transform: uppercase; letter-spacing: .03em;

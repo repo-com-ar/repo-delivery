@@ -33,13 +33,14 @@ const API_AUTH    = 'api/auth';
 const REFRESH_MS  = 40000;
 
 const state = {
-  disponibles:  [],
-  listos:       [],
-  entregados:   [],
-  stats:        {},
-  seccion:      'inicio',
-  sonido:       false,
-  idsConocidos: new Set(),
+  disponibles:       [],
+  listos:            [],
+  entregados:        [],
+  stats:             {},
+  seccion:           'inicio',
+  sonido:            false,
+  idsConocidos:      new Set(),
+  repartidorNombre:  '',
 };
 
 // ─── Boot ──────────────────────────────────────────
@@ -245,9 +246,10 @@ async function cargar(inicial = false) {
     if (!data.ok) throw new Error(data.error || 'Error');
 
     detectarNuevos(data.disponibles || []);
-    state.disponibles = data.disponibles || [];
-    state.listos      = data.listos      || [];
-    state.entregados  = data.entregados  || [];
+    state.disponibles      = data.disponibles       || [];
+    state.listos           = data.listos            || [];
+    state.entregados       = data.entregados        || [];
+    if (data.repartidor_nombre) state.repartidorNombre = data.repartidor_nombre;
     state.stats       = data.stats       || {};
     state.idsConocidos = new Set(state.disponibles.map(p => p.id));
 
@@ -336,10 +338,12 @@ function renderAll() {
 }
 
 function renderDashboard() {
-  const numP = document.getElementById('dashNumPending');
-  const numD = document.getElementById('dashNumDelivered');
-  if (numP) numP.textContent = state.disponibles.length;
-  if (numD) numD.textContent = state.entregados.length;
+  // Sección "Para tomar": disponibles / tomados hoy
+  ['dashNumPending'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = state.disponibles.length; });
+  ['dashNumDelivered'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = state.entregados.length; });
+  // Sección "Para entregar": asignados a este repartidor / entregados hoy
+  ['pendNumPending'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = state.listos.length; });
+  ['pendNumDelivered'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = state.entregados.length; });
 
   // Pedidos disponibles para tomar
   const contP  = document.getElementById('dashListaPending');
@@ -356,26 +360,77 @@ function renderDashboard() {
 
 }
 
+function calcZoom(distKm) {
+  if (!distKm || distKm <= 0) return 13;
+  if (distKm > 80) return 8;
+  if (distKm > 40) return 9;
+  if (distKm > 20) return 10;
+  if (distKm > 10) return 11;
+  if (distKm > 5)  return 12;
+  if (distKm > 2.5) return 13;
+  return 14;
+}
+
+function rutaSrc(p) {
+  // Directions: formato clásico maps.google.com que acepta zoom explícito
+  if (p.retiro_lat && p.retiro_lng && p.entrega_lat && p.entrega_lng) {
+    const z = calcZoom(p.distancia_km);
+    return `https://maps.google.com/maps?saddr=${p.retiro_lat},${p.retiro_lng}&daddr=${p.entrega_lat},${p.entrega_lng}&output=embed&z=${z}`;
+  }
+  // Punto único: usa Embed API con clave
+  const MAPS_KEY = window.MAPS_KEY || '';
+  if (!MAPS_KEY) return '';
+  if (p.entrega_lat && p.entrega_lng) {
+    return `https://www.google.com/maps/embed/v1/place?key=${MAPS_KEY}&q=${p.entrega_lat},${p.entrega_lng}&zoom=16`;
+  }
+  if (p.direccion) {
+    return `https://www.google.com/maps/embed/v1/place?key=${MAPS_KEY}&q=${encodeURIComponent(p.direccion)}&zoom=16`;
+  }
+  return '';
+}
+
+function abrirRutaModal(id, tipo) {
+  const p = tipo === 'listo'
+    ? state.listos.find(x => x.id === id)
+    : state.disponibles.find(x => x.id === id);
+  if (!p) return;
+  const src = rutaSrc(p);
+  if (!src) return;
+  document.getElementById('rutaIframe').src = src;
+  document.getElementById('rutaModalTitle').textContent = 'Ruta de entrega ' + (p.numero || '');
+  document.getElementById('rutaModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function contactarCliente(id) {
+  const p = state.listos.find(x => x.id === id);
+  if (!p || !p.celular) { toast('Este pedido no tiene número de teléfono'); return; }
+  const tel = p.celular.replace(/\D/g, '');
+  const nombre = state.repartidorNombre || 'el repartidor';
+  const msg = encodeURIComponent(`Hola soy ${nombre} y te escribo porque tengo que entregarte el pedido de Repo ${p.numero}`);
+  window.open(`https://wa.me/${tel}?text=${msg}`, '_blank');
+}
+
+function cerrarRutaModal() {
+  document.getElementById('rutaModal').classList.remove('open');
+  document.getElementById('rutaIframe').src = '';
+  document.body.style.overflow = '';
+}
+
 function dashCardDisponible(p) {
-  const dir = p.direccion
-    ? `<div class="dash-card-addr"><i class="fa-solid fa-location-dot"></i> ${esc(p.direccion)}</div>`
+  const distTxt   = p.distancia_km ? `${p.distancia_km} km` : '— km';
+  const tiempoTxt = p.tiempo_min   ? `~${p.tiempo_min} min` : '~— min';
+  const tieneRuta = !!rutaSrc(p);
+  const pagoHtml  = p.pago_estimado > 0
+    ? `<div class="card-pago"><span class="card-pago-label">Tarifa</span><span class="card-pago-valor">$${fmt(p.pago_estimado)}</span></div>`
     : '';
 
-  const MAPS_KEY = window.MAPS_KEY || '';
-  let mapaHtml = '';
-  const q = (p.lat && p.lng) ? `${p.lat},${p.lng}`
-          : p.direccion     ? encodeURIComponent(p.direccion)
-          : null;
-  if (q) {
-    const src = `https://www.google.com/maps/embed/v1/place?key=${MAPS_KEY}&q=${q}&zoom=16`;
-    mapaHtml = `
-      <div class="card-map-wrap dash-card-map">
-        <iframe class="card-map-frame" src="${src}" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
-      </div>`;
-  }
-
-  const distTxt = p.distancia_km ? `${p.distancia_km} km` : '— km';
-  const tiempoTxt = p.tiempo_min ? `~${p.tiempo_min} min` : '~— min';
+  const retiroHtml = p.deposito_nombre
+    ? `<div class="card-punto"><i class="fa-solid fa-warehouse"></i><span><b>Retiro:</b> ${esc(p.deposito_nombre)}${p.deposito_domicilio ? ' · ' + esc(p.deposito_domicilio) : ''}</span></div>`
+    : '';
+  const destinoHtml = p.direccion
+    ? `<div class="card-punto"><i class="fa-solid fa-location-dot"></i><span><b>Destino:</b> ${esc(p.direccion)}</span></div>`
+    : '';
 
   return `
     <div class="dash-card dash-card--disponible">
@@ -385,15 +440,14 @@ function dashCardDisponible(p) {
           <span class="dash-card-num">${esc(p.numero)}</span>
           <span class="dash-card-time">${tiempoRelativo(p.fecha)}</span>
         </div>
+        ${retiroHtml}
+        ${destinoHtml}
         <div class="dash-card-travel">
           <span><i class="fa-solid fa-route"></i> ${distTxt}</span>
           <span><i class="fa-solid fa-clock"></i> ${tiempoTxt}</span>
         </div>
-        ${dir}
-        ${mapaHtml}
-        <button class="btn-ver-pedido" onclick="event.stopPropagation();verPedidoDisponible(${p.id})">
-          <i class="fa-solid fa-eye"></i> Ver pedido
-        </button>
+        ${pagoHtml}
+        ${tieneRuta ? `<button class="btn-mostrar-ruta" onclick="event.stopPropagation();abrirRutaModal(${p.id},'disp')"><i class="fa-solid fa-map"></i> Mostrar ruta</button>` : ''}
         <button class="btn-tomar" data-tomar="${p.id}" onclick="event.stopPropagation();tomarPedido(${p.id})">
           <i class="fa-solid fa-hand"></i> Tomar pedido
         </button>
@@ -401,60 +455,6 @@ function dashCardDisponible(p) {
     </div>`;
 }
 
-function verPedidoDisponible(id) {
-  const p = state.disponibles.find(x => x.id === id);
-  if (!p) { toast('El pedido ya no está disponible'); return; }
-
-  const MAPS_KEY = window.MAPS_KEY || '';
-  const q = (p.lat && p.lng) ? `${p.lat},${p.lng}`
-          : p.direccion     ? encodeURIComponent(p.direccion)
-          : null;
-  const mapaHtml = q ? `
-    <div class="card-map-wrap">
-      <iframe class="card-map-frame" src="https://www.google.com/maps/embed/v1/place?key=${MAPS_KEY}&q=${q}&zoom=16" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
-    </div>` : '';
-
-  const itemsHtml = (p.items || []).map(it => `
-    <div class="pm-item">
-      <span class="pm-item-qty">${it.cantidad}x</span>
-      <span class="pm-item-name">${esc(it.nombre)}</span>
-      <span class="pm-item-price">$${fmt(it.precio * it.cantidad)}</span>
-    </div>`).join('');
-
-  const info = [
-    p.celular   ? `<div class="pm-row"><i class="fa-solid fa-phone"></i><a href="tel:${esc(p.celular)}">${esc(p.celular)}</a></div>` : '',
-    p.correo    ? `<div class="pm-row"><i class="fa-solid fa-envelope"></i><span>${esc(p.correo)}</span></div>` : '',
-    p.direccion ? `<div class="pm-row"><i class="fa-solid fa-location-dot"></i><span>${esc(p.direccion)}</span></div>` : '',
-    p.distancia_km ? `<div class="pm-row"><i class="fa-solid fa-route"></i><span>${p.distancia_km} km · ~${p.tiempo_min} min</span></div>` : '',
-    p.notas     ? `<div class="pm-row"><i class="fa-solid fa-note-sticky"></i><span>${esc(p.notas)}</span></div>` : '',
-  ].filter(Boolean).join('');
-
-  document.getElementById('pedidoModalTitle').textContent = p.numero || 'Pedido';
-  document.getElementById('pedidoModalBody').innerHTML = `
-    <div class="pm-block">
-      <div class="pm-block-title">Cliente</div>
-      <div class="pm-row"><i class="fa-solid fa-user"></i><span>${esc(p.cliente || '—')}</span></div>
-      ${info}
-      <div class="pm-row"><i class="fa-solid fa-clock"></i><span>${tiempoRelativo(p.fecha)}</span></div>
-    </div>
-    ${mapaHtml ? `<div class="pm-block"><div class="pm-block-title">Ubicación</div>${mapaHtml}</div>` : ''}
-    <div class="pm-block">
-      <div class="pm-block-title">Productos</div>
-      <div class="pm-items">${itemsHtml || '<div class="pm-item"><span></span><span>Sin productos</span><span></span></div>'}</div>
-      <div class="pm-total-row"><span>Total</span><span>$${fmt(p.total)}</span></div>
-    </div>
-    <button class="btn-tomar" data-tomar-modal="${p.id}" onclick="tomarPedido(${p.id})">
-      <i class="fa-solid fa-hand"></i> Tomar pedido
-    </button>`;
-
-  document.getElementById('pedidoModal').classList.add('open');
-  document.body.style.overflow = 'hidden';
-}
-
-function closePedidoModal() {
-  document.getElementById('pedidoModal').classList.remove('open');
-  document.body.style.overflow = '';
-}
 
 function dashCardDelivered(p) {
   const hora = p.entregado_at ? formatHora(p.entregado_at) : '';
@@ -490,7 +490,7 @@ async function tomarPedido(id) {
     if (data.ok) {
       toast('✅ Pedido tomado — aparece en "Para entregar"');
       state.disponibles = state.disponibles.filter(p => p.id !== id);
-      closePedidoModal();
+      cerrarRutaModal();
       renderDashboard();
       actualizarBadges();
     } else {
@@ -543,37 +543,7 @@ function cardListo(p) {
   const mapsUrl  = mapaUrl(p);
   const listo    = p.estado === 'reparto';
 
-  const itemsHtml = (p.items || []).map(it => `
-    <div class="card-item-row">
-      <span class="card-item-qty">${it.cantidad}x</span>
-      <span class="card-item-name">${esc(it.nombre)}</span>
-      <span class="card-item-price">$${fmt(it.precio * it.cantidad)}</span>
-    </div>`).join('');
-
-  // Mapa embebido Google Maps
-  const MAPS_KEY = window.MAPS_KEY || '';
-  let mapaHtml = '';
-  if (p.lat && p.lng) {
-    const q   = `${p.lat},${p.lng}`;
-    const src = `https://www.google.com/maps/embed/v1/place?key=${MAPS_KEY}&q=${q}&zoom=16`;
-    mapaHtml = `
-      <div class="card-map-wrap">
-        <iframe class="card-map-frame" src="${src}" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
-        <a class="card-map-open" href="${mapsUrl}" target="_blank" rel="noopener">
-          <i class="fa-solid fa-up-right-from-square"></i> Abrir en Google Maps
-        </a>
-      </div>`;
-  } else if (p.direccion) {
-    const q   = encodeURIComponent(p.direccion);
-    const src = `https://www.google.com/maps/embed/v1/place?key=${MAPS_KEY}&q=${q}&zoom=16`;
-    mapaHtml = `
-      <div class="card-map-wrap">
-        <iframe class="card-map-frame" src="${src}" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
-        <a class="card-map-open" href="${mapsUrl}" target="_blank" rel="noopener">
-          <i class="fa-solid fa-up-right-from-square"></i> Abrir en Google Maps
-        </a>
-      </div>`;
-  }
+  const tieneRuta = !!rutaSrc(p);
 
   return `
     <div class="order-card">
@@ -586,40 +556,28 @@ function cardListo(p) {
         </div>
         <div class="card-time" style="margin-bottom:8px">${tiempoRelativo(p.fecha)}</div>
 
-        <div class="card-cliente">${esc(p.cliente)}</div>
-
-        ${p.celular ? `
-        <div class="card-phone">
-          <i class="fa-solid fa-phone"></i>
-          <a href="tel:${esc(p.celular)}">${esc(p.celular)}</a>
-        </div>` : ''}
-
-        ${p.direccion ? `
-        <div class="card-address">
-          <i class="fa-solid fa-location-dot"></i>
-          <span>${esc(p.direccion)}</span>
-        </div>` : ''}
+        ${p.deposito_nombre ? `<div class="card-punto"><i class="fa-solid fa-warehouse"></i><span><b>Retiro:</b> ${esc(p.deposito_nombre)}${p.deposito_domicilio ? ' · ' + esc(p.deposito_domicilio) : ''}</span></div>` : ''}
+        ${p.direccion ? `<div class="card-punto"><i class="fa-solid fa-location-dot"></i><span><b>Destino:</b> ${esc(p.direccion)}</span></div>` : ''}
 
         ${p.distancia_km ? `
-        <div class="card-address">
+        <div class="card-punto">
           <i class="fa-solid fa-route"></i>
           <span>${p.distancia_km} km · ~${p.tiempo_min} min</span>
         </div>` : ''}
 
         ${p.notas ? `
-        <div class="card-address">
+        <div class="card-punto">
           <i class="fa-solid fa-note-sticky"></i>
           <span>${esc(p.notas)}</span>
         </div>` : ''}
 
-        ${mapaHtml}
-
-        ${itemsHtml ? `<div class="card-items">${itemsHtml}</div>` : ''}
+        ${tieneRuta ? `<button class="btn-mostrar-ruta" onclick="abrirRutaModal(${p.id},'listo')"><i class="fa-solid fa-map"></i> Mostrar ruta</button>` : ''}
+        ${p.celular ? `<button class="btn-whatsapp" onclick="event.stopPropagation();contactarCliente(${p.id})"><i class="fa-brands fa-whatsapp"></i> Contactar cliente</button>` : ''}
 
         <div class="card-footer">
-          <span class="card-total">$${fmt(p.total)}</span>
+          <span class="card-total">${p.repartidor_tarifa > 0 ? `<small style="display:block;font-size:.7rem;color:var(--muted)">Tarifa</small>$${fmt(p.repartidor_tarifa)}` : `$${fmt(p.total)}`}</span>
           <button class="btn-deliver" data-deliver="${p.id}"
-            onclick="marcarEntregado(${p.id})"
+            onclick="event.stopPropagation();if(!confirm('¿Confirmás que entregaste el pedido ${esc(p.numero)}?'))return;marcarEntregado(${p.id})"
             ${listo ? '' : 'disabled title="Esperá a que el pedido esté listo"'}>
             <i class="fa-solid fa-check"></i> ${listo ? 'Entregado' : 'Esperando…'}
           </button>
@@ -642,7 +600,7 @@ function cardEntregado(p) {
         <div class="card-cliente">${esc(p.cliente)}</div>
         ${p.direccion ? `<div class="card-address"><i class="fa-solid fa-location-dot"></i><span>${esc(p.direccion)}</span></div>` : ''}
         <div class="card-footer">
-          <span class="card-total">$${fmt(p.total)}</span>
+          <span class="card-total">${p.repartidor_tarifa > 0 ? `<small style="display:block;font-size:.7rem;color:var(--muted)">Tarifa</small>$${fmt(p.repartidor_tarifa)}` : `$${fmt(p.total)}`}</span>
         </div>
       </div>
     </div>`;
@@ -666,12 +624,7 @@ function actualizarBadges() {
     badgeInicio.style.display = nDisp > 0 ? '' : 'none';
   }
 
-  const countPend = document.getElementById('countPendientes');
   const countHist = document.getElementById('countHistorial');
-  if (countPend) {
-    countPend.textContent = nListos;
-    countPend.className   = 'section-count' + (nListos === 0 ? ' empty' : '');
-  }
   if (countHist) {
     countHist.textContent = state.entregados.length;
     countHist.className   = 'section-count' + (state.entregados.length === 0 ? ' empty' : '');
@@ -688,12 +641,14 @@ function ir(seccion) {
   const tab = document.getElementById('tab-' + seccion);
   if (sec) sec.classList.add('active');
   if (tab) tab.classList.add('active');
+
+  cargar();
 }
 
 // ─── Helpers ───────────────────────────────────────
 function mapaUrl(p) {
-  if (p.lat && p.lng) {
-    return `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}&travelmode=driving`;
+  if (p.entrega_lat && p.entrega_lng) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${p.entrega_lat},${p.entrega_lng}&travelmode=driving`;
   }
   if (p.direccion) {
     return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(p.direccion)}&travelmode=driving`;

@@ -73,14 +73,14 @@ $googleMapsKey = getConfigValue('google_maps_key');
 
       <div class="dash-stats">
         <div class="dash-stat dash-stat--pending">
-          <div class="dash-stat-icon"><i class="fa-solid fa-bag-shopping"></i></div>
+          <div class="dash-stat-icon"><i class="fa-solid fa-clock"></i></div>
           <div class="dash-stat-num" id="dashNumPending">0</div>
-          <div class="dash-stat-label">Por entregar</div>
+          <div class="dash-stat-label">Por tomar</div>
         </div>
         <div class="dash-stat dash-stat--delivered">
-          <div class="dash-stat-icon"><i class="fa-solid fa-check"></i></div>
+          <div class="dash-stat-icon"><i class="fa-solid fa-hand"></i></div>
           <div class="dash-stat-num" id="dashNumDelivered">0</div>
-          <div class="dash-stat-label">Entregados hoy</div>
+          <div class="dash-stat-label">Tomados hoy</div>
         </div>
       </div>
 
@@ -97,10 +97,20 @@ $googleMapsKey = getConfigValue('google_maps_key');
 
     <!-- Sección: Para entregar -->
     <div class="section" id="sec-pendientes">
-      <div class="section-header">
-        <span class="section-title">Para entregar</span>
-        <span class="section-count empty" id="countPendientes">0</span>
+
+      <div class="dash-stats">
+        <div class="dash-stat dash-stat--pending">
+          <div class="dash-stat-icon"><i class="fa-solid fa-motorcycle"></i></div>
+          <div class="dash-stat-num" id="pendNumPending">0</div>
+          <div class="dash-stat-label">Por entregar</div>
+        </div>
+        <div class="dash-stat dash-stat--delivered">
+          <div class="dash-stat-icon"><i class="fa-solid fa-house"></i></div>
+          <div class="dash-stat-num" id="pendNumDelivered">0</div>
+          <div class="dash-stat-label">Entregados hoy</div>
+        </div>
       </div>
+
       <div class="refresh-bar" onclick="cargar()">
         <i class="fa-solid fa-rotate-right"></i> Actualizar
       </div>
@@ -192,7 +202,7 @@ $googleMapsKey = getConfigValue('google_maps_key');
   <nav class="bottom-nav">
     <button class="nav-tab active" id="tab-inicio" onclick="ir('inicio')">
       <i class="fa-solid fa-clock"></i>
-      <span>Para asignar</span>
+      <span>Para tomar</span>
       <span class="nav-badge" id="badgeInicio" style="display:none">0</span>
     </button>
     <button class="nav-tab" id="tab-pendientes" onclick="ir('pendientes')">
@@ -212,17 +222,15 @@ $googleMapsKey = getConfigValue('google_maps_key');
 
 </div>
 
-<!-- Modal Ver Pedido -->
-<div class="modal-wrap" id="pedidoModal" onclick="if(event.target===this)closePedidoModal()">
-  <div class="modal">
+<!-- Modal Ruta -->
+<div class="modal-wrap modal-ruta-wrap" id="rutaModal" onclick="if(event.target===this)cerrarRutaModal()">
+  <div class="modal modal-ruta">
     <div class="modal-handle"></div>
-    <div class="modal-header">
-      <span class="modal-title" id="pedidoModalTitle">Pedido</span>
-      <button class="modal-close" onclick="closePedidoModal()" aria-label="Cerrar">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-    </div>
-    <div class="modal-body" id="pedidoModalBody"></div>
+    <div class="ruta-modal-title" id="rutaModalTitle"></div>
+    <iframe id="rutaIframe" class="ruta-iframe" src="" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+    <button class="btn-cerrar-ruta" onclick="cerrarRutaModal()">
+      <i class="fa-solid fa-xmark"></i> Cerrar
+    </button>
   </div>
 </div>
 
