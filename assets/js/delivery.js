@@ -475,6 +475,7 @@ function dashCardDelivered(p) {
 }
 
 async function tomarPedido(id) {
+  if (!confirm('¿Confirmar que tomás este pedido?')) return;
   const botones = document.querySelectorAll(`[data-tomar="${id}"], [data-tomar-modal="${id}"]`);
   botones.forEach(b => { b.disabled = true; b.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Tomando…'; });
 
