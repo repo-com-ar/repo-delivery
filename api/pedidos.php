@@ -224,12 +224,58 @@ if ($method === 'PUT') {
         exit;
     }
 
-    $stmt = $pdo->prepare("UPDATE pedidos SET estado = ? WHERE id = ?");
-    $stmt->execute([$estado, $id]);
+    $pdo->beginTransaction();
+    try {
+        // Solo liberar stock_comprometido si la transición es desde un estado activo
+        // (evita doble descuento si se reenvía la petición con el pedido ya entregado)
+        $prev = $pdo->prepare("SELECT estado FROM pedidos WHERE id = ?");
+        $prev->execute([$id]);
+        $estadoAnterior = $prev->fetchColumn();
 
-    if ($stmt->rowCount() === 0) {
-        http_response_code(404);
-        echo json_encode(['ok' => false, 'error' => 'Pedido no encontrado']);
+        if ($estadoAnterior === false) {
+            $pdo->rollBack();
+            http_response_code(404);
+            echo json_encode(['ok' => false, 'error' => 'Pedido no encontrado']);
+            exit;
+        }
+
+        // Estados terminales: no se puede modificar un pedido cancelado ni uno ya entregado.
+        if (in_array($estadoAnterior, ['cancelado', 'entregado'], true) && $estadoAnterior !== $estado) {
+            $pdo->rollBack();
+            http_response_code(409);
+            $msg = $estadoAnterior === 'cancelado'
+                ? 'Un pedido cancelado no puede reactivarse'
+                : 'Un pedido entregado no puede modificar su estado';
+            echo json_encode(['ok' => false, 'error' => $msg]);
+            exit;
+        }
+
+        $stmt = $pdo->prepare("UPDATE pedidos SET estado = ? WHERE id = ?");
+        $stmt->execute([$estado, $id]);
+
+        // Liberar stock_comprometido al entregar (la mercadería salió del depósito)
+        if ($estado === 'entregado' &&
+            $estadoAnterior !== 'entregado' &&
+            $estadoAnterior !== 'cancelado') {
+            $items = $pdo->prepare("SELECT producto_id, cantidad FROM pedido_items WHERE pedido_id = ?");
+            $items->execute([$id]);
+            $libera = $pdo->prepare("
+                UPDATE productos
+                SET stock_comprometido = GREATEST(0, stock_comprometido - ?)
+                WHERE id = ?
+            ");
+            foreach ($items->fetchAll() as $it) {
+                if (!empty($it['producto_id'])) {
+                    $libera->execute([(int)$it['cantidad'], (int)$it['producto_id']]);
+                }
+            }
+        }
+
+        $pdo->commit();
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => 'Error al cambiar estado']);
         exit;
     }
 
