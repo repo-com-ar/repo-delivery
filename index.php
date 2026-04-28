@@ -5,6 +5,13 @@ $rep = authRepartidor();
 $inicial = strtoupper(mb_substr($rep['nombre'] ?? 'R', 0, 1));
 require_once __DIR__ . '/../repo-api/config/db.php';
 $googleMapsKey = getConfigValue('google_maps_key');
+
+$fotoCarnet = '';
+try {
+    $st = getDB()->prepare("SELECT foto_carnet FROM repartidores WHERE id = ? LIMIT 1");
+    $st->execute([(int)($rep['id'] ?? 0)]);
+    $fotoCarnet = (string)($st->fetchColumn() ?: '');
+} catch (Throwable $e) { /* tabla/columna inexistente: usar inicial */ }
 ?><!DOCTYPE html>
 <html lang="es" data-theme="light">
 <head>
@@ -137,7 +144,13 @@ $googleMapsKey = getConfigValue('google_maps_key');
     <!-- Sección: Perfil -->
     <div class="section" id="sec-perfil">
       <div class="profile-card">
-        <div class="profile-avatar"><?= $inicial ?></div>
+        <div class="profile-avatar">
+          <?php if ($fotoCarnet): ?>
+            <img src="<?= htmlspecialchars($fotoCarnet) ?>" alt="Foto carnet">
+          <?php else: ?>
+            <?= $inicial ?>
+          <?php endif; ?>
+        </div>
         <div class="profile-name"><?= htmlspecialchars($rep['nombre'] ?? '') ?></div>
         <div class="profile-role">Repartidor</div>
         <div class="profile-row">

@@ -215,6 +215,35 @@ if ($method === 'PUT') {
         exit;
     }
 
+    // ── Abandonar pedido (devolverlo a asignacion para que lo tome otro) ──
+    if ($accion === 'abandonar') {
+        if (!$repId) {
+            http_response_code(401);
+            echo json_encode(['ok' => false, 'error' => 'No autorizado']);
+            exit;
+        }
+        // Atómico: solo permite abandonar si el pedido está en reparto y asignado a este repartidor
+        $stmt = $pdo->prepare("
+            UPDATE pedidos
+            SET repartidor_id     = NULL,
+                repartidor_tarifa = 0,
+                estado            = 'asignacion'
+            WHERE id = ?
+              AND estado = 'reparto'
+              AND repartidor_id = ?
+        ");
+        $stmt->execute([$id, $repId]);
+
+        if ($stmt->rowCount() === 0) {
+            http_response_code(409);
+            echo json_encode(['ok' => false, 'error' => 'No podés abandonar este pedido']);
+            exit;
+        }
+
+        echo json_encode(['ok' => true, 'id' => $id]);
+        exit;
+    }
+
     // ── Cambiar estado ──
     $estado    = trim($body['estado'] ?? '');
     $permitidos = ['entregado'];

@@ -295,6 +295,36 @@ function notificarDesktop(p) {
   });
 }
 
+async function abandonarPedido(id, numero) {
+  if (!confirm('¿Abandonar el pedido ' + numero + '? Volverá a estar disponible para que lo tome otro repartidor.')) return;
+
+  const btn = document.querySelector(`[data-abandonar="${id}"]`);
+  if (btn) btn.disabled = true;
+
+  try {
+    const r = await fetch(API_PEDIDOS, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ id, accion: 'abandonar' }),
+    });
+    if (r.status === 401) { location.href = 'login.php'; return; }
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error || 'Error');
+
+    // Sacar de listos localmente; el próximo refresh lo mostrará en disponibles a otro repartidor
+    const idx = state.listos.findIndex(p => p.id === id);
+    if (idx !== -1) state.listos.splice(idx, 1);
+    renderAll();
+    toast('Pedido abandonado — disponible para otro repartidor');
+    // Refrescar desde el server para sincronizar
+    cargar();
+  } catch (e) {
+    toast('Error: ' + e.message);
+    if (btn) btn.disabled = false;
+  }
+}
+
 async function marcarEntregado(id) {
   const btn = document.querySelector(`[data-deliver="${id}"]`);
   if (btn) btn.disabled = true;
@@ -577,11 +607,18 @@ function cardListo(p) {
 
         <div class="card-footer">
           <span class="card-total">${p.repartidor_tarifa > 0 ? `<small style="display:block;font-size:.7rem;color:var(--muted)">Tarifa</small>$${fmt(p.repartidor_tarifa)}` : `$${fmt(p.total)}`}</span>
-          <button class="btn-deliver" data-deliver="${p.id}"
-            onclick="event.stopPropagation();if(!confirm('¿Confirmás que entregaste el pedido ${esc(p.numero)}?'))return;marcarEntregado(${p.id})"
-            ${listo ? '' : 'disabled title="Esperá a que el pedido esté listo"'}>
-            <i class="fa-solid fa-check"></i> ${listo ? 'Entregado' : 'Esperando…'}
-          </button>
+          <div class="card-actions">
+            <button class="btn-abandonar" data-abandonar="${p.id}"
+              onclick="event.stopPropagation();abandonarPedido(${p.id}, '${esc(p.numero)}')"
+              ${listo ? '' : 'disabled'}>
+              <i class="fa-solid fa-rotate-left"></i> Abandonar
+            </button>
+            <button class="btn-deliver" data-deliver="${p.id}"
+              onclick="event.stopPropagation();if(!confirm('¿Confirmás que entregaste el pedido ${esc(p.numero)}?'))return;marcarEntregado(${p.id})"
+              ${listo ? '' : 'disabled title="Esperá a que el pedido esté listo"'}>
+              <i class="fa-solid fa-check"></i> ${listo ? 'Entregado' : 'Esperando…'}
+            </button>
+          </div>
         </div>
 
       </div>
