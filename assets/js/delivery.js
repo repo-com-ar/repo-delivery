@@ -17,7 +17,19 @@ window.addEventListener('appinstalled', () => {
   if (btn) btn.style.display = 'none';
 });
 
-async function pwaInstall() {
+function pwaInstall() {
+  if (!_pwaPrompt) return;
+  document.getElementById('pwaInstallModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function pwaInstallCancel() {
+  document.getElementById('pwaInstallModal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+async function pwaInstallConfirm() {
+  pwaInstallCancel();
   if (!_pwaPrompt) return;
   _pwaPrompt.prompt();
   const { outcome } = await _pwaPrompt.userChoice;
@@ -25,6 +37,8 @@ async function pwaInstall() {
     _pwaPrompt = null;
     const btn = document.getElementById('btnInstall');
     if (btn) btn.style.display = 'none';
+    document.getElementById('pwaInstalledScreen').classList.add('open');
+    document.body.style.overflow = 'hidden';
   }
 }
 

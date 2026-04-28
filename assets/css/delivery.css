@@ -140,6 +140,11 @@ button { font-family: inherit; }
   font-size: .9rem; transition: background .15s;
 }
 .btn-icon:active { background: var(--border); }
+#btnInstall i { animation: install-pulse 2s ease-in-out infinite; }
+@keyframes install-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .35; }
+}
 
 /* ===== Campana de notificaciones ===== */
 .btn-notif { position: relative; }
@@ -707,6 +712,23 @@ button { font-family: inherit; }
 [data-theme="dark"] .logo-dark  { display: block; }
 
 /* ===== Banner: instalar PWA en iOS (prerequisito para push) ===== */
+.pwa-installed-screen {
+  display: none; position: fixed; inset: 0; z-index: 3000;
+  background: var(--bg); color: var(--text);
+  flex-direction: column; align-items: center; justify-content: center;
+  padding: 32px 24px; text-align: center;
+}
+.pwa-installed-screen.open { display: flex; }
+.pwa-installed-screen img { height: 60px; width: auto; margin-bottom: 28px; }
+.pwa-installed-title {
+  font-size: 1.4rem; font-weight: 700; margin-bottom: 14px;
+}
+.pwa-installed-text {
+  font-size: .95rem; color: var(--muted); line-height: 1.5;
+  margin: 0; max-width: 320px;
+}
+.pwa-installed-text b { color: var(--primary); }
+
 .ios-install-backdrop {
   position: fixed; inset: 0;
   background: rgba(15, 23, 42, .55);
@@ -717,10 +739,12 @@ button { font-family: inherit; }
 .ios-install-backdrop.open { display: flex; animation: fadeIn .2s ease-out; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
+#pwaInstallModal { align-items: center; }
+
 .ios-install-card {
-  background: var(--card, #fff); color: var(--text, #0f172a);
+  background: var(--surface); color: var(--text);
   width: 100%; max-width: 420px;
-  border-radius: 18px 18px 18px 18px;
+  border-radius: 18px;
   padding: 28px 22px 24px;
   box-shadow: 0 25px 60px rgba(0, 0, 0, .35);
   position: relative;
@@ -732,14 +756,14 @@ button { font-family: inherit; }
   position: absolute; top: 10px; right: 10px;
   background: transparent; border: none; cursor: pointer;
   width: 36px; height: 36px; border-radius: 50%;
-  color: var(--text-secondary, #64748b); font-size: 1.1rem;
+  color: var(--muted); font-size: 1.1rem;
   display: flex; align-items: center; justify-content: center;
 }
 .ios-install-close:active { background: rgba(0, 0, 0, .06); }
 
 .ios-install-icon {
   width: 56px; height: 56px; border-radius: 14px;
-  background: linear-gradient(135deg, var(--primary, #FFA000), #f59e0b);
+  background: linear-gradient(135deg, var(--primary), #f59e0b);
   color: #fff; display: flex; align-items: center; justify-content: center;
   font-size: 1.6rem; margin: 0 auto 14px;
   box-shadow: 0 6px 20px rgba(255, 160, 0, .35);
@@ -750,10 +774,25 @@ button { font-family: inherit; }
 }
 .ios-install-text {
   text-align: center; font-size: .88rem;
-  color: var(--text-secondary, #64748b); margin-bottom: 14px;
+  color: var(--muted); margin-bottom: 14px;
 }
 .ios-install-steps {
   margin: 0; padding-left: 22px; font-size: .88rem; line-height: 1.55;
 }
 .ios-install-steps li { margin-bottom: 6px; }
 .ios-install-steps b { color: var(--primary, #FFA000); }
+
+.btn-install-confirm, .btn-install-cancel {
+  width: 100%; padding: 13px; border: none; border-radius: 10px;
+  font-size: .9rem; font-weight: 700; cursor: pointer;
+  transition: background .15s;
+}
+.btn-install-confirm {
+  background: var(--primary); color: #fff; margin-top: 4px;
+}
+.btn-install-confirm:active { background: var(--primary-h); }
+.btn-install-cancel {
+  background: transparent; color: var(--muted);
+  margin-top: 8px;
+}
+.btn-install-cancel:active { background: rgba(0,0,0,.04); }

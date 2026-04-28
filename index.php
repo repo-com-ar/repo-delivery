@@ -41,19 +41,12 @@ try {
       <img class="logo-dark"  src="assets/img/repo_logo_withe.png" alt="Repo Online" style="height:30px; width:auto;">
     </div>
     <div class="header-right">
-      <div class="live-badge">
-        <span class="live-dot"></span>
-        <span id="lastUpdate">—</span>
-      </div>
-      <button class="btn-icon" id="btnRefresh" onclick="cargar()" title="Actualizar">
-        <i class="fa-solid fa-rotate-right"></i>
+      <button class="btn-icon" id="btnInstall" onclick="pwaInstall()" title="Instalar aplicación" style="display:none">
+        <i class="fa-solid fa-download" style="font-size:18px"></i>
       </button>
       <button class="btn-icon btn-notif" id="btnNotif" onclick="toggleNotifPanel()" title="Notificaciones" aria-label="Notificaciones">
         <i class="fa-solid fa-bell"></i>
         <span class="notif-dot" id="notifDot" style="display:none"></span>
-      </button>
-      <button class="btn-icon" id="btnInstall" onclick="pwaInstall()" title="Instalar aplicación" style="display:none">
-        <i class="fa-solid fa-download" style="font-size:18px"></i>
       </button>
     </div>
   </header>
@@ -98,6 +91,9 @@ try {
       <div class="empty-state" id="dashEmptyPending" style="display:none">
         <i class="fa-solid fa-box-open"></i>
         <p>No hay pedidos pendientes</p>
+      </div>
+      <div class="refresh-bar" onclick="cargar()">
+        <i class="fa-solid fa-rotate-right"></i> Actualizar
       </div>
 
     </div>
@@ -254,6 +250,33 @@ try {
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
+
+<!-- Pantalla post-instalación PWA -->
+<div class="pwa-installed-screen" id="pwaInstalledScreen">
+  <img class="logo-light" src="assets/img/repo_logo_black.png" alt="Repo Delivery">
+  <img class="logo-dark"  src="assets/img/repo_logo_withe.png" alt="Repo Delivery">
+  <div class="pwa-installed-title">¡Listo!</div>
+  <p class="pwa-installed-text">
+    De ahora en adelante abrí la aplicación desde el ícono <b>Repo Delivery</b> en la pantalla de inicio de tu teléfono.
+  </p>
+</div>
+
+<!-- Modal: confirmar instalación PWA -->
+<div class="ios-install-backdrop" id="pwaInstallModal" onclick="if(event.target===this)pwaInstallCancel()">
+  <div class="ios-install-card">
+    <div class="ios-install-icon"><i class="fa-solid fa-mobile-screen-button"></i></div>
+    <div class="ios-install-title">Vas a instalar Repo Delivery</div>
+    <p class="ios-install-text">
+      Esta acción creará un acceso directo en tu pantalla de inicio y te permitirá recibir notificaciones de pedidos para tomar.
+    </p>
+    <button class="btn-install-confirm" onclick="pwaInstallConfirm()">
+      Instalar <i class="fa-solid fa-download" style="margin-left:6px"></i>
+    </button>
+    <button class="btn-install-cancel" onclick="pwaInstallCancel()">
+      Cancelar
+    </button>
+  </div>
+</div>
 
 <!-- Banner iOS: instalar PWA en pantalla de inicio -->
 <div class="ios-install-backdrop" id="pushInstallBanner" onclick="if(event.target===this)cerrarInstallBannerIOS()">
